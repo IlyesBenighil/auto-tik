@@ -1,0 +1,38 @@
+{
+    "video": {
+        "width": 1080,
+        "height": 1920,
+        "fps": 30,
+        "duration": 15,
+        "background_color": "#000000",
+        "text_color": "#FFFFFF",
+        "font_size": {
+            "question": 60,
+            "answer": 50,
+            "explanation": 40
+        }
+    },
+    "themes": [
+        "histoire",
+        "géographie",
+        "cinéma",
+        "culture_pop",
+        "capitales",
+        "drapeaux",
+        "sciences",
+        "sport"
+    ],
+    "tts": {
+        "provider": "local",
+        "voice": "french",
+        "language": "fr-FR"
+    },
+    "storage": {
+        "local_path": "assets/generated",
+        "cloud_provider": "none"
+    },
+    "publishing": {
+        "auto_publish": false,
+        "platform": "tiktok"
+    }
+} 

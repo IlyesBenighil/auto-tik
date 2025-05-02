@@ -1,0 +1,5 @@
+venv/*
+assets/generated/*
+assets/temp/*
+.env
+src/__pycache__/*
