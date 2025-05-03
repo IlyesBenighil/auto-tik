@@ -21,15 +21,22 @@ logger = logging.getLogger(__name__)
 load_dotenv()
 
 class VideoGenerator:
-    def __init__(self):
+    def __init__(self, num_questions: int = 1):
+        """
+        Initialise le générateur de vidéos.
+        
+        Args:
+            num_questions (int): Nombre de questions à générer (par défaut: 5)
+        """
         self.config = self._load_config()
         self._setup_directories()
         
         # Initialisation des composants
         self.theme_selector = ThemeSelector()
-        self.question_generator = QuestionGenerator()
+        self.question_generator = QuestionGenerator(num_questions=num_questions)
+        self.theme = self.theme_selector.get_next_theme()
         self.tts_engine = TTSEngine()
-        self.video_creator = VideoCreator()
+        self.video_creator = VideoCreator(theme=self.theme)
         self.storage_manager = StorageManager()
 
     def _load_config(self):
@@ -53,11 +60,14 @@ class VideoGenerator:
         """Génère une vidéo complète"""
         try:
             # 1. Sélection du thème
-            theme = self.theme_selector.get_next_theme()
+            theme = self.theme
             logger.info(f"Thème sélectionné : {theme}")
 
             # 2. Génération des questions
             questions = self.question_generator.generate_question(theme)
+            # Ajout du thème aux questions
+            for question in questions:
+                question['theme'] = theme
             logger.info(f"{len(questions)} questions générées")
 
             # 3. Génération des vidéos pour chaque question

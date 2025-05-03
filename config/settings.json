@@ -14,13 +14,10 @@
     },
     "themes": [
         "histoire",
-        "géographie",
-        "cinéma",
-        "culture_pop",
-        "capitales",
-        "drapeaux",
+        "geographie",
+        "mathématiques",
         "sciences",
-        "sport"
+        "anglais"
     ],
     "tts": {
         "provider": "local",

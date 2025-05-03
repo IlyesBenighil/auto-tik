@@ -6,10 +6,14 @@ from mistralai import Mistral
 from dotenv import load_dotenv
 
 class QuestionGenerator:
-    def __init__(self):
+    def __init__(self, num_questions: int = 5):
         """
         Initialise le générateur de questions avec l'API Mistral.
+        
+        Args:
+            num_questions (int): Nombre de questions à générer (par défaut: 5)
         """
+        self.num_questions = num_questions
         print("Initialisation de l'API Mistral...")
         load_dotenv(override=True)
         
@@ -54,7 +58,7 @@ class QuestionGenerator:
         print(json_str)
         
         # Supprime tout HTML et texte après le JSON
-        json_str = re.sub(r'</?[^>]+>', '', json_str)  # Supprime les balises HTML
+        json_str = re.sub(r'</?[^>]+>', '', json_str)
         json_str = re.sub(r'<style[^>]*>.*?</style>', '', json_str, flags=re.DOTALL)  # Supprime les balises style
         json_str = re.sub(r'<script[^>]*>.*?</script>', '', json_str, flags=re.DOTALL)  # Supprime les balises script
         
@@ -82,13 +86,19 @@ class QuestionGenerator:
         
     def generate_question(self, theme: str) -> List[Dict[str, Any]]:
         try:
-            prompt = f"""Génère 6 questions de type QCM sur le thème de '{theme}'.
+            prompt = f"""
+            Génère EXACTEMENT {self.num_questions} questions EN FRANCAIS de type QCM sur le thème de '{theme}'.
 
 Pour chaque question :
 - Propose 4 choix de réponse numérotés ("1", "2", "3", "4").
 - Indique laquelle est la bonne réponse.
-- La réponse doit être correcte et vérifiable scientifiquement.
+- La réponse doit être correcte.
 - Les questions doivent être variées et couvrir différents aspects du thème.
+- Les questions doivent être de plus en plus difficiles.
+- Les questions ne doivent pas être trop longues, de même pour les choix.
+- Les questions doivent toujours être en français, méme si elle parle d'une autre lanngue ou pays.
+- TOUTES LES QUESTIONS DOIVENT ETRE SUR LE THEME DE '{theme}'.
+- IMPORTANT: Génère EXACTEMENT {self.num_questions} questions, pas plus, pas moins.
 
 Le format de sortie doit être strictement en JSON comme ceci :
 
@@ -104,7 +114,6 @@ Le format de sortie doit être strictement en JSON comme ceci :
       }},
       "answer": "3"
     }},
-    // 1 seule question au même format
   ]
 }}
 
@@ -154,6 +163,14 @@ A toi de me donner le QCM en JSON :"""
             
             if not validated_questions:
                 raise ValueError("Aucune question valide n'a été générée")
+            
+            # Limite le nombre de questions au nombre demandé
+            validated_questions = validated_questions[:self.num_questions]
+            
+            # Si on n'a pas assez de questions valides, on génère à nouveau
+            if len(validated_questions) < self.num_questions:
+                print(f"Pas assez de questions valides ({len(validated_questions)}/{self.num_questions}), nouvelle tentative...")
+                return self.generate_question(theme)
             
             return validated_questions
             

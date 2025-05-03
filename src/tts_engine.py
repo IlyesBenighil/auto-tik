@@ -25,7 +25,7 @@ class TTSEngine:
         # Configuration de la voix française
         self.voice = texttospeech.VoiceSelectionParams(
             language_code="fr-FR",
-            name="fr-FR-Standard-A",
+            name="fr-FR-Chirp3-HD-Orus",
             ssml_gender=texttospeech.SsmlVoiceGender.NEUTRAL
         )
         
