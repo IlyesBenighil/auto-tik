@@ -3,3 +3,4 @@ assets/generated/*
 assets/temp/*
 .env
 src/__pycache__/*
+assets/backgrounds/*

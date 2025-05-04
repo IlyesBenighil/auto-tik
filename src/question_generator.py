@@ -21,6 +21,7 @@ class QuestionGenerator:
         if not api_key:
             raise ValueError("La clé API Mistral n'est pas définie. Veuillez définir la variable d'environnement MISTRAL_API_KEY")
         
+        # Initialisation avec la nouvelle API
         self.client = Mistral(api_key=api_key)
         print("API Mistral initialisée avec succès!")
         
@@ -97,6 +98,7 @@ Pour chaque question :
 - Les questions doivent être de plus en plus difficiles.
 - Les questions ne doivent pas être trop longues, de même pour les choix.
 - Les questions doivent toujours être en français, méme si elle parle d'une autre lanngue ou pays.
+- Chaque choix de question doit contenir un choix vraiment débile.
 - TOUTES LES QUESTIONS DOIVENT ETRE SUR LE THEME DE '{theme}'.
 - IMPORTANT: Génère EXACTEMENT {self.num_questions} questions, pas plus, pas moins.
 
@@ -119,21 +121,22 @@ Le format de sortie doit être strictement en JSON comme ceci :
 
 A toi de me donner le QCM en JSON :"""
             
+            # Structure des messages pour la nouvelle API
             messages = [
                 {"role": "user", "content": prompt}
             ]
             
-            # Appel à l'API Mistral
-            chat_response = self.client.chat.complete(
-                model="open-mistral-nemo",
+            # Appel à l'API Mistral avec la nouvelle API
+            response = self.client.chat.complete(
+                model="mistral-large-2411",
                 messages=messages,
                 temperature=0.7,
-                max_tokens=2000,
+                max_tokens=5000,
                 top_p=0.95
             )
             
-            # Récupération de la réponse
-            response_text = chat_response.choices[0].message.content
+            # Récupération de la réponse (nouvelle structure)
+            response_text = response.choices[0].message.content
             
             # Nettoyage et parsing du JSON
             json_str = self._clean_json_string(response_text)

@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 load_dotenv()
 
 class VideoGenerator:
-    def __init__(self, num_questions: int = 1):
+    def __init__(self, num_questions: int = 4):
         """
         Initialise le générateur de vidéos.
         
@@ -71,21 +71,17 @@ class VideoGenerator:
             logger.info(f"{len(questions)} questions générées")
 
             # 3. Génération des vidéos pour chaque question
-            video_paths = []
+            small_video_objects = []
             for i, question in enumerate(questions, 1):
                 logger.info(f"Traitement de la question {i}/{len(questions)}")
-                
                 # Génération de la voix
                 audio_files = self.tts_engine.generate_question_audio(question)
                 logger.info(f"Audio généré pour la question {i}")
-
                 # Création de la vidéo
-                video_path = self.video_creator.create_video(question, audio_files)
-                logger.info(f"Vidéo créée pour la question {i}: {video_path}")
-                video_paths.append(video_path)
+                small_video_objects.append(self.video_creator.create_video(question, audio_files))
 
             # 4. Concaténation des vidéos
-            final_video_path = self.video_creator.concatenate_videos(video_paths)
+            final_video_path = self.video_creator.concatenate_videos(video_clips= small_video_objects)
             logger.info(f"Vidéo finale créée : {final_video_path}")
 
             # 5. Sauvegarde de la vidéo
