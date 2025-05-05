@@ -5,7 +5,7 @@
         "fps": 30,
         "duration": 15,
         "spacing": 110,
-        "question_font_size": 60,
+        "question_font_size": 80,
         "choices_font_size": 60,
         "background_color": "#000000",
         "text_color": "white",
@@ -25,7 +25,7 @@
     "num_questions": 1,
     "num_choices": 3,
     "size_question": 200,
-    "model": "mistral-large-2411",
+    "model": "open-mistral-nemo",
     "path_assets": {
         "backgrounds": "assets/backgrounds/videos",
         "generated": "assets/generated",

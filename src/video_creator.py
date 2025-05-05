@@ -4,8 +4,8 @@ from typing import List, Dict
 from pathlib import Path
 import random
 import time
-from PIL import Image, ImageDraw
-from moviepy import AudioClip, AudioFileClip, ColorClip, CompositeAudioClip, CompositeVideoClip, ImageClip, TextClip, VideoFileClip, concatenate_audioclips, concatenate_videoclips
+from PIL import Image, ImageDraw, ImageFont
+from moviepy import AudioClip, AudioFileClip, ColorClip, CompositeAudioClip, CompositeVideoClip, ImageClip, TextClip, VideoFileClip, VideoClip, concatenate_audioclips, concatenate_videoclips
 import numpy as np
 import ast
 
@@ -239,42 +239,8 @@ class VideoCreator:
             part1 = part1.with_duration(part1_duration)
             
             # # --- Partie Timer ---
-            
-            # Création d'un cercle semi-transparent pour le timer
-            timer_bg = ColorClip(
-                size=(200, 200),
-                color=(0, 0, 0, 0.7)
-            ).with_position(('center', self.height*0.45))
-            timer_bg = timer_bg.with_duration(timer_duration)
-            
-            # Création des clips de texte pour le timer
-            timer_texts = []
-            for t in range(3):
-                timer_text = TextClip(
-                    text=str(3-t),
-                    font_size=150,
-                    color='#FFD700',
-                    font=self.config["video"]["font"],
-                    stroke_color='black',
-                    stroke_width=3
-                ).with_position(('center', self.height*0.45))
-                timer_texts.append(timer_text.with_start(t).with_duration(1))
-            
-            # Création du clip du timer - avec conservation des questions et choix en arrière-plan
-            timer_clip = CompositeVideoClip(
-                [question_box.with_duration(timer_duration)] +
-                [choice.with_duration(timer_duration) for choice in choices_boxes] +
-                [timer_bg] +
-                timer_texts,
-                size=(self.width, self.height)
-            )
-            timer_clip.fps = self.config["video"]["fps"]
-            
-            tick_path = self.config["path_assets"]["sound_effects"] + '/' + self.config["sound_effects"]["tick"]
-            tick_audio = AudioFileClip(tick_path)
-            # Assurons-nous que timer_clip a une durée définie
-            timer_clip = timer_clip.with_duration(timer_duration)
-            timer_clip = timer_clip.with_audio(tick_audio)
+            # Création d'une barre de progression stylisée au lieu du timer circulaire
+            timer_clip = self._create_progress_bar_timer(timer_duration, question_box, choices_boxes)
             
             # # Partie 2 : Réponse
             
@@ -330,6 +296,144 @@ class VideoCreator:
             logger.error(f"Erreur lors de la création de la vidéo: {str(e)}")
             raise
             
+    def _create_progress_bar_timer(self, timer_duration: float, question_box: CompositeVideoClip, choices_boxes: List[CompositeVideoClip]) -> CompositeVideoClip:
+        # Paramètres du timer circulaire
+        circle_radius = 100  # Deux fois plus grand
+        circle_thickness = 20  # Épaisseur proportionnelle
+        circle_color = (255, 165, 0, 255)  # Orange
+        circle_bg_color = (40, 44, 52, 180)  # Fond gris foncé semi-transparent
+        text_color = (248, 248, 242, 255)    # Texte blanc
+        
+        frames_per_second = self.config["video"]["fps"]
+        total_frames = int(timer_duration * frames_per_second)
+        
+        # Calcul de la position du timer
+        spacing = self.config["video"]["spacing"]
+        question_height = question_box.size[1]
+        question_y = self.height * 0.1
+        choices_total_height = sum(choice.size[1] for choice in choices_boxes)
+        total_spacing = spacing * len(choices_boxes)
+        
+        # Position au centre de l'écran sous les choix
+        timer_y = question_y + question_height + choices_total_height + total_spacing + 80  # Plus d'espace pour un timer plus grand
+        timer_y = min(timer_y, self.height * 0.8)
+        
+        # Créer les images pour chaque frame
+        frames = []
+        for frame in range(total_frames):
+            # Calculer le temps restant
+            progress = frame / total_frames
+            time_left = int(timer_duration - (frame / frames_per_second)) + 1
+            
+            # Créer une image pour le timer - plus grande
+            img = Image.new("RGBA", (2*circle_radius + 40, 2*circle_radius + 40), (0, 0, 0, 0))
+            draw = ImageDraw.Draw(img)
+            
+            # Dessiner le cercle de fond
+            draw.ellipse(
+                [(20, 20), (20 + 2*circle_radius, 20 + 2*circle_radius)], 
+                outline=circle_bg_color, 
+                width=circle_thickness
+            )
+            
+            # Calculer l'angle pour l'arc de progression (360 degrés = cercle complet)
+            angle = int(360 * (1 - progress))
+            
+            # Dessiner l'arc de progression
+            # L'angle 0 est à droite (Est) et tourne dans le sens anti-horaire
+            draw.arc(
+                [(20, 20), (20 + 2*circle_radius, 20 + 2*circle_radius)],
+                start=270, 
+                end=(270 + angle) % 360,
+                fill=circle_color, 
+                width=circle_thickness
+            )
+            
+            # Ajouter le texte du temps restant
+            try:
+                font = ImageFont.truetype(self.config["video"]["font"], 80)  # Police plus grande
+            except:
+                font = ImageFont.load_default()
+                
+            # Position texte au centre du cercle
+            text_x = circle_radius + 20
+            text_y = circle_radius + 20
+            draw.text(
+                (text_x, text_y), 
+                str(time_left), 
+                fill=text_color, 
+                font=font, 
+                anchor="mm"
+            )
+            
+            # Convertir en array pour moviepy
+            frame_array = np.array(img)
+            frames.append(frame_array)
+        
+        # Créer les clips pour chaque image
+        timer_clips = []
+        for i, frame in enumerate(frames):
+            clip = ImageClip(frame)
+            clip = clip.with_duration(1/frames_per_second)
+            timer_clips.append(clip)
+        
+        # Créer un clip combinant toutes les images du timer
+        if timer_clips:
+            timer_sequence = concatenate_videoclips(timer_clips, method="compose")
+            timer_sequence = timer_sequence.with_duration(timer_duration)
+            
+            # Préparer la question et les choix
+            question_clip = question_box.with_duration(timer_duration)
+            choices_clips = [choice.with_duration(timer_duration) for choice in choices_boxes]
+            
+            # Positionner le timer au centre
+            timer_pos = ("center", timer_y)
+            
+            # Ajouter le son beep_10
+            beep_path = os.path.join(self.config["path_assets"]["sound_effects"] + '/' + self.config["sound_effects"]["tick"])
+            
+            # Vérifier si le fichier audio existe
+            audio_clip = None
+            if os.path.exists(beep_path):
+                try:
+                    beep_audio = AudioFileClip(beep_path)
+                    
+                    # Si l'audio est plus court que le timer, créer une boucle
+                    if beep_audio.duration < timer_duration:
+                        # Calculer combien de fois il faut répéter l'audio
+                        repeats = int(timer_duration / beep_audio.duration) + 1
+                        # Créer une liste d'audio clips à concaténer
+                        beep_clips = [beep_audio] * repeats
+                        # Concaténer et couper à la durée exacte
+                        audio_clip = concatenate_audioclips(beep_clips).subclipped(0, timer_duration)
+                    else:
+                        # Sinon, couper l'audio à la durée du timer
+                        audio_clip = beep_audio.subclipped(0, timer_duration)
+                        
+                    logger.info(f"Son beep_10 ajouté au timer")
+                except Exception as e:
+                    logger.error(f"Erreur lors du chargement du son beep_10: {str(e)}")
+            else:
+                logger.warning(f"Fichier son beep_10 introuvable: {beep_path}")
+            
+            # Créer le clip final avec question, choix et timer
+            timer_clip = CompositeVideoClip(
+                [question_clip] + choices_clips + [timer_sequence.with_position(timer_pos)],
+                size=(self.width, self.height)
+            )
+            timer_clip.fps = self.config["video"]["fps"]
+            
+            # Ajouter l'audio si disponible
+            if audio_clip:
+                timer_clip = timer_clip.with_audio(audio_clip)
+            
+            return timer_clip
+        else:
+            # Fallback si pas de frames
+            logger.error("Aucune frame générée pour le timer")
+            blank = ColorClip(size=(self.width, self.height), color=(0, 0, 0, 0))
+            return blank.with_duration(timer_duration)
+
     def concatenate_videos(self, video_clips: List[CompositeVideoClip]) -> str:
         """
         Concatène plusieurs clips vidéo en une seule vidéo.
