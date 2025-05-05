@@ -21,23 +21,20 @@ logger = logging.getLogger(__name__)
 load_dotenv()
 
 class VideoGenerator:
-    def __init__(self, num_questions: int = 4):
+    def __init__(self):
         """
         Initialise le générateur de vidéos.
-        
-        Args:
-            num_questions (int): Nombre de questions à générer (par défaut: 5)
         """
         self.config = self._load_config()
         self._setup_directories()
         
         # Initialisation des composants
-        self.theme_selector = ThemeSelector()
-        self.question_generator = QuestionGenerator(num_questions=num_questions)
+        self.theme_selector = ThemeSelector(config=self.config)
+        self.question_generator = QuestionGenerator(num_questions=self.config["num_questions"], config=self.config)
         self.theme = self.theme_selector.get_next_theme()
-        self.tts_engine = TTSEngine()
-        self.video_creator = VideoCreator(theme=self.theme)
-        self.storage_manager = StorageManager()
+        self.tts_engine = TTSEngine(config=self.config)
+        self.video_creator = VideoCreator(theme=self.theme, config=self.config)
+        self.storage_manager = StorageManager(config=self.config)
 
     def _load_config(self):
         """Charge la configuration depuis le fichier settings.json"""
@@ -65,24 +62,22 @@ class VideoGenerator:
 
             # 2. Génération des questions
             questions = self.question_generator.generate_question(theme)
-            # Ajout du thème aux questions
-            for question in questions:
-                question['theme'] = theme
             logger.info(f"{len(questions)} questions générées")
 
             # 3. Génération des vidéos pour chaque question
             small_video_objects = []
             for i, question in enumerate(questions, 1):
                 logger.info(f"Traitement de la question {i}/{len(questions)}")
+                
                 # Génération de la voix
                 audio_files = self.tts_engine.generate_question_audio(question)
                 logger.info(f"Audio généré pour la question {i}")
+                
                 # Création de la vidéo
                 small_video_objects.append(self.video_creator.create_video(question, audio_files))
 
             # 4. Concaténation des vidéos
-            final_video_path = self.video_creator.concatenate_videos(video_clips= small_video_objects)
-            logger.info(f"Vidéo finale créée : {final_video_path}")
+            final_video_path = self.video_creator.concatenate_videos(video_clips=small_video_objects)
 
             # 5. Sauvegarde de la vidéo
             saved_path = self.storage_manager.save_video(final_video_path)

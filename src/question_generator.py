@@ -6,13 +6,14 @@ from mistralai import Mistral
 from dotenv import load_dotenv
 
 class QuestionGenerator:
-    def __init__(self, num_questions: int = 5):
+    def __init__(self, config: dict, num_questions: int = 5):
         """
         Initialise le générateur de questions avec l'API Mistral.
         
         Args:
             num_questions (int): Nombre de questions à générer (par défaut: 5)
         """
+        self.config = config
         self.num_questions = num_questions
         print("Initialisation de l'API Mistral...")
         load_dotenv(override=True)
@@ -86,12 +87,14 @@ class QuestionGenerator:
         return json_str
         
     def generate_question(self, theme: str) -> List[Dict[str, Any]]:
+        num_choices = self.config["num_choices"]
+        choices = str(tuple(str(i) for i in range(1, num_choices + 1)))
         try:
             prompt = f"""
-            Génère EXACTEMENT {self.num_questions} questions EN FRANCAIS de type QCM sur le thème de '{theme}'.
+            Génère EXACTEMENT {self.config["num_questions"]} questions EN FRANCAIS de type QCM sur le thème de '{theme}'.
 
 Pour chaque question :
-- Propose 4 choix de réponse numérotés ("1", "2", "3", "4").
+- Propose {self.config["num_choices"]} choix de réponse numérotés {choices}.
 - Indique laquelle est la bonne réponse.
 - La réponse doit être correcte.
 - Les questions doivent être variées et couvrir différents aspects du thème.
@@ -100,7 +103,7 @@ Pour chaque question :
 - Les questions doivent toujours être en français, méme si elle parle d'une autre lanngue ou pays.
 - Chaque choix de question doit contenir un choix vraiment débile.
 - TOUTES LES QUESTIONS DOIVENT ETRE SUR LE THEME DE '{theme}'.
-- IMPORTANT: Génère EXACTEMENT {self.num_questions} questions, pas plus, pas moins.
+- IMPORTANT: Génère EXACTEMENT {self.config["num_questions"]} questions, pas plus, pas moins.
 
 Le format de sortie doit être strictement en JSON comme ceci :
 
@@ -111,8 +114,7 @@ Le format de sortie doit être strictement en JSON comme ceci :
       "choices": {{
         "1": "Choix 1",
         "2": "Choix 2",
-        "3": "Choix 3",
-        "4": "Choix 4"
+        "3": "Choix 3"
       }},
       "answer": "3"
     }},
@@ -128,7 +130,7 @@ A toi de me donner le QCM en JSON :"""
             
             # Appel à l'API Mistral avec la nouvelle API
             response = self.client.chat.complete(
-                model="mistral-large-2411",
+                model=self.config["model"],
                 messages=messages,
                 temperature=0.7,
                 max_tokens=5000,
@@ -140,7 +142,7 @@ A toi de me donner le QCM en JSON :"""
             
             # Nettoyage et parsing du JSON
             json_str = self._clean_json_string(response_text)
-            
+
             # Parse du JSON
             try:
                 question_data = json.loads(json_str)
@@ -190,26 +192,27 @@ A toi de me donner le QCM en JSON :"""
         Returns:
             bool: True si la question est valide, False sinon
         """
+        num_choices = self.config["num_choices"]
         try:
             required_fields = ["question", "choices", "answer"]
             if not all(key in question_data for key in required_fields):
                 return False
 
             # Vérification de la longueur de la question
-            if len(question_data["question"]) > 200:
+            if len(question_data["question"]) > self.config["size_question"]:
                 return False
 
             # Vérification des choix
-            if not isinstance(question_data["choices"], dict) or len(question_data["choices"]) != 4:
+            if not isinstance(question_data["choices"], dict) or len(question_data["choices"]) != num_choices:
                 return False
 
             # Vérification que tous les choix sont présents
-            for i in range(1, 5):
+            for i in range(1, num_choices + 1):
                 if str(i) not in question_data["choices"]:
                     return False
 
             # Vérification de la réponse
-            if question_data["answer"] not in ["1", "2", "3", "4"]:
+            if question_data["answer"] not in [str(i) for i in range(1, num_choices + 1)]:
                 return False
 
             return True

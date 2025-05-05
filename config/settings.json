@@ -4,13 +4,40 @@
         "height": 1920,
         "fps": 30,
         "duration": 15,
+        "spacing": 110,
+        "question_font_size": 60,
+        "choices_font_size": 60,
         "background_color": "#000000",
-        "text_color": "#FFFFFF",
+        "text_color": "white",
+        "highlight_color": "#000000",
+        "choice_correct_background": "(0, 255, 0, 102)",
+        "choice_correct_highlight": "(0, 255, 0, 255)",
+        "choice_background": "(0, 0, 0, 153)",
+        "choice_highlight": "(255, 255, 255, 204)",
+        "font": "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
         "font_size": {
             "question": 60,
             "answer": 50,
             "explanation": 40
-        }
+        },
+        "background": "back_3.mp4"
+    },
+    "num_questions": 1,
+    "num_choices": 3,
+    "size_question": 200,
+    "model": "mistral-large-2411",
+    "path_assets": {
+        "backgrounds": "assets/backgrounds/videos",
+        "generated": "assets/generated",
+        "music": "assets/music",
+        "temp": "assets/temp",
+        "sound_effects": "assets/sound_effects"
+    },
+    "music": {
+        "background": "back_10.mp3"
+    },
+    "sound_effects": {
+        "tick": "beep_10.wav"
     },
     "themes": [
         "histoire",
@@ -36,16 +63,11 @@
         "psychologie"
     ],
     "tts": {
-        "provider": "local",
-        "voice": "french",
-        "language": "fr-FR"
+        "language": "fr-FR",
+        "voice": "fr-FR-Studio-A",
+        "gender": "male"
     },
     "storage": {
-        "local_path": "assets/generated",
-        "cloud_provider": "none"
-    },
-    "publishing": {
-        "auto_publish": false,
-        "platform": "tiktok"
+        "local_path": "assets/generated"
     }
 } 

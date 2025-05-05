@@ -7,24 +7,29 @@ import time
 from PIL import Image, ImageDraw
 from moviepy import AudioClip, AudioFileClip, ColorClip, CompositeAudioClip, CompositeVideoClip, ImageClip, TextClip, VideoFileClip, concatenate_audioclips, concatenate_videoclips
 import numpy as np
+import ast
 
 logger = logging.getLogger(__name__)
 
 class VideoCreator:
-    def __init__(self, theme: str = 'geographie'):
+    def __init__(self, config: dict, theme: str):
         """
         Initialise le créateur de vidéos.
         
         Args:
             theme (str): Le thème du quiz (par défaut: 'geographie')
         """
+        self.config = config
         self.theme = theme
-        self.temp_dir = Path("assets/temp")
+        self.temp_dir = Path(config["path_assets"]["temp"])
         self.temp_dir.mkdir(parents=True, exist_ok=True)
         
         # Chargement des ressources
-        self.backgrounds_dir = Path("assets/backgrounds")
-        self.music_dir = Path("assets/music")
+        
+        # Fond video background
+        self.backgrounds_dir = Path(config["path_assets"]["backgrounds"])
+        # Fond musique background
+        self.music_dir = Path(config["path_assets"]["music"])
         
         # Vérification des ressources
         if not self.backgrounds_dir.exists():
@@ -33,11 +38,11 @@ class VideoCreator:
             raise ValueError("Le répertoire de la musique n'existe pas")
             
         # Dimensions TikTok (9:16)
-        self.width = 1080
-        self.height = 1920
+        self.width = self.config["video"]["width"]
+        self.height = self.config["video"]["height"]
         
         # Sélection de la musique qui sera utilisée pour toutes les vidéos
-        self.music = AudioFileClip('assets/music/back_10.mp3')
+        self.music = AudioFileClip(str(self.music_dir) + '/' + self.config["music"]["background"])
         # Gestionnaire de fonds vidéo
         try:
             from src.background_manager import BackgroundManager
@@ -47,12 +52,15 @@ class VideoCreator:
             logger.error(f"Erreur lors de l'initialisation du BackgroundManager: {str(e)}")
             self.background_manager = None
         
+    
         # Couleurs et styles
         self.colors = {
-            'background': (0, 0, 0, 0.5),  # Noir semi-transparent (réduit à 50%)
-            'text': 'white',
-            'highlight': '#000000',
-            'correct': '#00FF00'  # Vert pour la bonne réponse
+            'text': self.config["video"]["text_color"],
+            'highlight': self.config["video"]["highlight_color"],
+            'choice_correct_background': ast.literal_eval(self.config["video"]["choice_correct_background"]),
+            'choice_correct_highlight': ast.literal_eval(self.config["video"]["choice_correct_highlight"]),
+            'choice_background': ast.literal_eval(self.config["video"]["choice_background"]),
+            'choice_highlight': ast.literal_eval(self.config["video"]["choice_highlight"])
         }
         
             
@@ -82,7 +90,7 @@ class VideoCreator:
         question_clip_with_position = question_clip.with_position(('center', question_y))
         
         # Espacement entre les options
-        spacing = 110
+        spacing = self.config["video"]["spacing"]
         question_clip_height = question_clip.size[1]
         
         current_y = question_clip_height + question_y + spacing 
@@ -93,121 +101,6 @@ class VideoCreator:
             choices_clips_with_position.append(choice_clip.with_position(('center', current_y)))
             current_y += choice_clip.size[1] + spacing
         return question_clip_with_position, choices_clips_with_position
-
-    def _get_answer_timestamp(self, audio_file: str, answer: str) -> float:
-        """
-        Estime le moment où la bonne réponse est donnée dans l'audio.
-        Pour l'instant, on utilise une estimation simple basée sur la durée totale.
-        
-        Args:
-            audio_file (str): Chemin du fichier audio
-            answer (str): La bonne réponse
-            
-        Returns:
-            float: Timestamp estimé de la bonne réponse
-        """
-        # On estime que la bonne réponse est donnée à 80% de la durée totale
-        audio = AudioFileClip(audio_file)
-        return audio.duration * 0.8
-
-    def _detect_answer_timestamp(self, audio_file: str, answer: str, choices: Dict[str, str]) -> float:
-        """
-        Détecte automatiquement le moment où la bonne réponse est donnée dans l'audio.
-        
-        Args:
-            audio_file (str): Chemin du fichier audio
-            answer (str): La bonne réponse (numéro)
-            choices (Dict[str, str]): Dictionnaire des choix
-            
-        Returns:
-            float: Timestamp où la bonne réponse est donnée
-        """
-        try:
-            # On cherche le texte de la bonne réponse
-            correct_choice_text = choices[answer].lower()
-            
-            # On utilise whisper pour transcrire l'audio
-            import whisper
-            model = whisper.load_model("base")
-            result = model.transcribe(audio_file)
-            
-            # On cherche le segment qui contient la bonne réponse
-            for segment in result["segments"]:
-                if correct_choice_text in segment["text"].lower():
-                    return segment["start"]
-            
-            # Si on ne trouve pas, on retourne 80% de la durée
-            audio = AudioFileClip(audio_file)
-            return audio.duration * 0.8
-            
-        except Exception as e:
-            logger.error(f"Erreur lors de la détection du timestamp de la réponse: {str(e)}")
-            # En cas d'erreur, on retourne 80% de la durée
-            audio = AudioFileClip(audio_file)
-            return audio.duration * 0.8
-
-    def _generate_tts_audio(self, question_data: Dict) -> List[str]:
-        """
-        Génère les fichiers audio TTS pour la question et la réponse en utilisant Google Cloud TTS.
-        
-        Args:
-            question_data (Dict): Les données de la question
-            
-        Returns:
-            List[str]: Liste des chemins des fichiers audio [question_audio, answer_audio]
-        """
-        try:
-            from google.cloud import texttospeech
-            
-            # Initialisation du client Google Cloud TTS
-            client = texttospeech.TextToSpeechClient()
-            
-            # Configuration de la voix
-            voice = texttospeech.VoiceSelectionParams(
-                language_code="fr-FR",
-                name="fr-FR-Standard-A",
-                ssml_gender=texttospeech.SsmlVoiceGender.FEMALE
-            )
-            
-            # Configuration de l'audio
-            audio_config = texttospeech.AudioConfig(
-                audio_encoding=texttospeech.AudioEncoding.MP3,
-                speaking_rate=1.0,
-                pitch=0.0
-            )
-            
-            # Création du texte pour la question et les choix
-            question_text = f"{question_data['question']}\n"
-            for i in range(1, 5):
-                question_text += f"{i}. {question_data['choices'][str(i)]}\n"
-            
-            # Création du texte pour la réponse (sans répéter la question)
-            answer_text = f"La réponse est : {question_data['choices'][question_data['answer']]}"
-            
-            # Génération des fichiers audio
-            def generate_audio(text: str, output_path: str):
-                synthesis_input = texttospeech.SynthesisInput(text=text)
-                response = client.synthesize_speech(
-                    input=synthesis_input,
-                    voice=voice,
-                    audio_config=audio_config
-                )
-                with open(output_path, "wb") as out:
-                    out.write(response.audio_content)
-            
-            # Audio pour la question et les choix
-            qc_audio_path = self.temp_dir / f"tts_qc_{int(time.time() * 1000)}.mp3"
-            generate_audio(question_text, str(qc_audio_path))
-            
-            # Audio pour la réponse
-            ans_audio_path = self.temp_dir / f"tts_ans_{int(time.time() * 1000)}.mp3"
-            generate_audio(answer_text, str(ans_audio_path))
-            
-            return [str(qc_audio_path), str(ans_audio_path)]
-            
-        except Exception as e:
-            logger.error(f"Erreur lors de la génération des fichiers audio TTS: {str(e)}")
-            raise
 
     def _create_text_box(self, text: str, fontsize: int, color: str, is_correct: bool = False) -> CompositeVideoClip:
         """
@@ -232,7 +125,7 @@ class VideoCreator:
                 method='caption',
                 stroke_color=self.colors['highlight'],
                 stroke_width=2,
-                font='/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf'
+                font=self.config["video"]["font"]
             )
             
             # Dimensions de la boîte avec padding
@@ -246,11 +139,11 @@ class VideoCreator:
             
             # Couleurs de la boîte
             if is_correct:
-                fill_color = (0, 255, 0, 102)  # Vert semi-transparent
-                border_color = (0, 255, 0, 255)  # Vert plein
+                fill_color = self.colors['choice_correct_background']
+                border_color = self.colors['choice_correct_highlight']
             else:
-                fill_color = (0, 0, 0, 153)  # Noir semi-transparent
-                border_color = (255, 255, 255, 204)  # Blanc semi-transparent
+                fill_color = self.colors['choice_background']
+                border_color = self.colors['choice_highlight']
             
             # Dessin du fond
             draw.rectangle(
@@ -296,12 +189,6 @@ class VideoCreator:
             CompositeVideoClip: Le clip vidéo créé
         """
         try:
-            # Vérification et génération des fichiers audio si nécessaire
-            if len(audio_files) < 2:
-                logger.info("Génération des fichiers audio TTS...")
-                audio_files = self._generate_tts_audio(question_data)
-                logger.info(f"Fichiers audio générés : {audio_files}")
-            
             # Vérification que les fichiers audio existent
             for audio_file in audio_files:
                 if not os.path.exists(audio_file):
@@ -321,7 +208,7 @@ class VideoCreator:
             # Création de la boîte pour la question
             question_box = self._create_text_box(
                 question_data['question'],
-                fontsize=90,
+                fontsize=self.config["video"]["question_font_size"],
                 color=self.colors['text']
             )
         
@@ -329,11 +216,11 @@ class VideoCreator:
             # Création des boîtes pour les choix (tous en style normal)
             choices_boxes = []
             
-            for i in range(1, 5):
+            for i in range(1, self.config["num_choices"] + 1):
                 choice_text = f"{i}. {question_data['choices'][str(i)]}"
                 choice_box = self._create_text_box(
                     choice_text,
-                    fontsize=70,
+                    fontsize=self.config["video"]["choices_font_size"],
                     color=self.colors['text'],
                     is_correct=False  # Tous les choix sont en style normal
                 )
@@ -347,7 +234,7 @@ class VideoCreator:
                 [question_box] + choices_boxes,
                 size=(self.width, self.height)
             )
-            part1.fps = 30
+            part1.fps = self.config["video"]["fps"]
             part1 = part1.with_audio(question_audio)
             part1 = part1.with_duration(part1_duration)
             
@@ -367,7 +254,7 @@ class VideoCreator:
                     text=str(3-t),
                     font_size=150,
                     color='#FFD700',
-                    font='/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',
+                    font=self.config["video"]["font"],
                     stroke_color='black',
                     stroke_width=3
                 ).with_position(('center', self.height*0.45))
@@ -381,10 +268,10 @@ class VideoCreator:
                 timer_texts,
                 size=(self.width, self.height)
             )
-            timer_clip.fps = 30
+            timer_clip.fps = self.config["video"]["fps"]
             
-            
-            tick_audio = AudioFileClip('assets/sound_effects/beep_10.wav')
+            tick_path = self.config["path_assets"]["sound_effects"] + '/' + self.config["sound_effects"]["tick"]
+            tick_audio = AudioFileClip(tick_path)
             # Assurons-nous que timer_clip a une durée définie
             timer_clip = timer_clip.with_duration(timer_duration)
             timer_clip = timer_clip.with_audio(tick_audio)
@@ -398,7 +285,7 @@ class VideoCreator:
                 if i == correct_answer_index:
                     choice_box = self._create_text_box(
                     question_data['choices'][str(i)],
-                    fontsize=70,
+                    fontsize=self.config["video"]["choices_font_size"],
                     color=self.colors['text'],
                     is_correct=True)
                     choices_boxes_part2.append(choice_box)
@@ -413,7 +300,7 @@ class VideoCreator:
                 [question_box2] + choices_boxes_part2,
                 size=(self.width, self.height)
             )
-            part2.fps = 30
+            part2.fps = self.config["video"]["fps"]
             part2 = part2.with_audio(answer_audio)
             
             # Assurons-nous que part2 a une durée définie
@@ -464,7 +351,7 @@ class VideoCreator:
                     
                     # Assurer que le fps est défini
                     if not hasattr(clip, 'fps') or clip.fps is None:
-                        clip.fps = 30
+                        clip.fps = self.config["video"]["fps"]
                     
                     # Si pas d'audio, ajouter un clip silencieux
                     if not hasattr(clip, 'audio') or clip.audio is None:
@@ -478,7 +365,7 @@ class VideoCreator:
                 
             # Concaténation
             final_clip = concatenate_videoclips(valid_clips)
-            final_clip.fps = 30
+            final_clip.fps = self.config["video"]["fps"]
             # Calcul de la durée totale
             total_duration = final_clip.duration
             
@@ -506,9 +393,9 @@ class VideoCreator:
             
             # Ajout de la vidéo de fond
             # video_path = self.background_manager.get_background_video(self.theme)
-            video_path = 'assets/backgrounds/videos/back_3.mp4'
+            video_path = self.config["path_assets"]["backgrounds"] + '/' + self.config["video"]["background"]
             logger.info(f"Chemin de la vidéo de fond: {video_path}")
-            output_path = self.temp_dir / self._get_unique_filename(prefix="final")
+            output_path = str(self.temp_dir) + '/' + self._get_unique_filename(prefix="final")
 
             if video_path:
                 try:
@@ -546,7 +433,7 @@ class VideoCreator:
                         size=(self.width, self.height),
                         use_bgclip=True
                     )
-                    final_composite.fps = 30
+                    final_composite.fps = self.config["video"]["fps"]
                     
                     # On s'assure que l'audio est préservé
                     if hasattr(final_clip, 'audio') and final_clip.audio is not None:
@@ -566,11 +453,11 @@ class VideoCreator:
                     
                     
                     # Sauvegarde avec un nom unique
-                    output_path = self.temp_dir / self._get_unique_filename(prefix="final")
+                    output_path = str(self.temp_dir) + '/' + self._get_unique_filename(prefix="final")
                 
             final_clip.write_videofile(
                 str(output_path),
-                fps=30,
+                fps=self.config["video"]["fps"],
                 codec='libx264',
                 audio_codec='aac',
                 preset='ultrafast',
