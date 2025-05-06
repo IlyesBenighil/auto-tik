@@ -117,10 +117,10 @@ class TimerAnimationDemo:
             filled_width = int(bar_width * (1 - progress))
             if filled_width > 0:
                 draw.rounded_rectangle(
-                    [(bar_x, bar_y), (bar_x + filled_width, bar_y + bar_height)],
+                [(bar_x, bar_y), (bar_x + filled_width, bar_y + bar_height)],
                     radius=bar_height // 2,
-                    fill=bar_color
-                )
+                fill=bar_color
+            )
             
             # Ajouter le texte du compte à rebours
             time_left = int(self.timer_duration - (frame/frames_per_second))
@@ -194,16 +194,16 @@ class TimerAnimationDemo:
         
         # Créer le timer
         timer_clip = self.create_sliding_bar_timer()
-        
-        # Fond noir pour le timer
-        timer_bg = ColorClip(
-            size=(self.width, self.height),
-            color=(0, 0, 0)
-        ).with_duration(timer_clip.duration)
-        
-        # Combiner le fond et le timer
-        complete_timer_clip = CompositeVideoClip([timer_bg, timer_clip], size=(self.width, self.height))
-        complete_timer_clip.fps = self.fps
+            
+            # Fond noir pour le timer
+            timer_bg = ColorClip(
+                size=(self.width, self.height),
+                color=(0, 0, 0)
+            ).with_duration(timer_clip.duration)
+            
+            # Combiner le fond et le timer
+            complete_timer_clip = CompositeVideoClip([timer_bg, timer_clip], size=(self.width, self.height))
+            complete_timer_clip.fps = self.fps
         
         # Chemin du fichier de sortie
         output_path = str(output_dir / "timer_animation_demo.mp4")

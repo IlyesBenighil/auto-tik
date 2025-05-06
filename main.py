@@ -9,6 +9,7 @@ from src.question_generator import QuestionGenerator
 from src.tts_engine import TTSEngine
 from src.video_creator import VideoCreator
 from src.storage import StorageManager
+from src.srt_generator import SRTGenerator
 
 # Configuration du logging
 logging.basicConfig(
@@ -35,6 +36,7 @@ class VideoGenerator:
         self.tts_engine = TTSEngine(config=self.config)
         self.video_creator = VideoCreator(theme=self.theme, config=self.config)
         self.storage_manager = StorageManager(config=self.config)
+        self.srt_generator = SRTGenerator(config=self.config)
 
     def _load_config(self):
         """Charge la configuration depuis le fichier settings.json"""
@@ -47,7 +49,7 @@ class VideoGenerator:
         directories = [
             "assets/backgrounds",
             "assets/music",
-            "assets/temp",
+            "temp",
             "assets/generated"
         ]
         for directory in directories:
@@ -65,19 +67,56 @@ class VideoGenerator:
             logger.info(f"{len(questions)} questions générées")
 
             # 3. Génération des vidéos pour chaque question
-            small_video_objects = []
+            video_clips = []
+            all_audio_info = []
+            current_time = 0  # Pour suivre le timing des sous-titres
+            
             for i, question in enumerate(questions, 1):
                 logger.info(f"Traitement de la question {i}/{len(questions)}")
                 
-                # Génération de la voix
-                audio_files = self.tts_engine.generate_question_audio(question)
+                # Génération de la voix avec les informations détaillées
+                audio_info = self.tts_engine.generate_question_audio(question)
                 logger.info(f"Audio généré pour la question {i}")
                 
+                # Ajuster les timings pour les sous-titres
+                for j, info in enumerate(audio_info):
+                    info['start_time'] = current_time
+                    current_time += info['duration']
+                    info['end_time'] = current_time
+                    # Si c'est la première partie (question), ajouter la durée du timer
+                    if info.get('is_question', False) and j+1 < len(audio_info) and audio_info[j+1].get('is_answer', False):
+                        # Ajouter le timer à l'offset total uniquement si suivi d'une réponse
+                        timer_duration = 3.0
+                        current_time += timer_duration
+                
+                all_audio_info.extend(audio_info)
+                
                 # Création de la vidéo
-                small_video_objects.append(self.video_creator.create_video(question, audio_files))
+                video_clip = self.video_creator.create_video(question, audio_info)
+                video_clips.append(video_clip)
+                logger.info(f"Vidéo générée pour la question {i}")
 
-            # 4. Concaténation des vidéos
-            final_video_path = self.video_creator.concatenate_videos(video_clips=small_video_objects)
+            # Génération du fichier SRT avec les bons timings
+            if self.config["subtitles"]["enabled"]:
+                logger.info("Génération des sous-titres...")
+                
+                # Utiliser WhisperX si configuré
+                if self.config["subtitles"].get("use_whisperx", False):
+                    srt_file = self.srt_generator.transcribe_with_timestamps(all_audio_info)
+                    logger.info(f"Fichier SRT généré avec WhisperX : {srt_file}")
+                else:
+                    # Sinon utiliser la répartition uniforme
+                    srt_file = self.srt_generator.generate_srt(all_audio_info)
+                    logger.info(f"Fichier SRT généré par répartition uniforme : {srt_file}")
+
+                # 4. Concaténation des vidéos avec les sous-titres
+                final_video_path = self.video_creator.concatenate_videos(
+                    video_clips=video_clips,
+                    srt_file=srt_file,
+                    audio_info=all_audio_info
+                )
+            else:
+                final_video_path = self.video_creator.concatenate_videos(video_clips=video_clips)
 
             # 5. Sauvegarde de la vidéo
             saved_path = self.storage_manager.save_video(final_video_path)
@@ -103,4 +142,4 @@ def main():
         raise
 
 if __name__ == "__main__":
-    main() 
+    main()

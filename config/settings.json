@@ -15,22 +15,33 @@
         "choice_background": "(0, 0, 0, 153)",
         "choice_highlight": "(255, 255, 255, 204)",
         "font": "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-        "font_size": {
-            "question": 60,
-            "answer": 50,
-            "explanation": 40
-        },
-        "background": "back_3.mp4"
+        "background": "back_3_v2.mp4"
     },
-    "num_questions": 1,
+    "subtitles": {
+        "font_size": 70,
+        "background_color": [220, 20, 20],
+        "text_color": "#ffffff",
+        "stroke_color": "#000000",
+        "stroke_width": 1,
+        "corner_radius": 15,
+        "padding_x": 20,
+        "padding_y": 10,
+        "bottom_margin": 50,
+        "extra_spacing": 30,
+        "model_size": "medium",
+        "language": "fr",
+        "enabled": true,
+        "use_whisperx": true,
+        "word_by_word": true
+    },
+    "num_questions": 5,
     "num_choices": 3,
     "size_question": 200,
-    "model": "open-mistral-nemo",
+    "model": "ministral-8b-latest",
     "path_assets": {
+        "temp": "temp",
         "backgrounds": "assets/backgrounds/videos",
-        "generated": "assets/generated",
         "music": "assets/music",
-        "temp": "assets/temp",
         "sound_effects": "assets/sound_effects"
     },
     "music": {

@@ -95,6 +95,8 @@ class QuestionGenerator:
 
 Pour chaque question :
 - Propose {self.config["num_choices"]} choix de réponse numérotés {choices}.
+- Les choix doivent être différents les uns des autres et doivent être cours (max 3 mots).
+- La question doit être courte (max 10 mots).
 - Indique laquelle est la bonne réponse.
 - La réponse doit être correcte.
 - Les questions doivent être variées et couvrir différents aspects du thème.

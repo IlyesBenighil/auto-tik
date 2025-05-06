@@ -6,6 +6,7 @@ import random
 import time
 from PIL import Image, ImageDraw, ImageFont
 from moviepy import AudioClip, AudioFileClip, ColorClip, CompositeAudioClip, CompositeVideoClip, ImageClip, TextClip, VideoFileClip, VideoClip, concatenate_audioclips, concatenate_videoclips
+from moviepy.video.tools.subtitles import SubtitlesClip
 import numpy as np
 import ast
 
@@ -23,6 +24,9 @@ class VideoCreator:
         self.theme = theme
         self.temp_dir = Path(config["path_assets"]["temp"])
         self.temp_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Nouvelle variable pour stocker la position Y du bas du dernier choix
+        self.last_choice_bottom_y = None
         
         # Chargement des ressources
         
@@ -100,6 +104,14 @@ class VideoCreator:
         for i, choice_clip in enumerate(choices_clips):
             choices_clips_with_position.append(choice_clip.with_position(('center', current_y)))
             current_y += choice_clip.size[1] + spacing
+        
+        # Stocker la position Y du bas du dernier choix pour les sous-titres
+        if choices_clips:
+            last_choice = choices_clips[-1]
+            self.last_choice_bottom_y = current_y - spacing  # Position après le dernier choix
+        else:
+            self.last_choice_bottom_y = question_clip_height + question_y + spacing
+            
         return question_clip_with_position, choices_clips_with_position
 
     def _create_text_box(self, text: str, fontsize: int, color: str, is_correct: bool = False) -> CompositeVideoClip:
@@ -177,31 +189,38 @@ class VideoCreator:
             logger.error(f"Erreur lors de la création de la boîte: {str(e)}")
             raise
 
-    def create_video(self, question_data: Dict, audio_files: List[str]) -> CompositeVideoClip:
+    def create_video(self, question_data: Dict, audio_info: List[Dict]) -> CompositeVideoClip:
         """
-        Crée une vidéo à partir des données de la question et des fichiers audio.
+        Crée une vidéo à partir des données de la question et des informations audio.
         
         Args:
             question_data (Dict): Données de la question
-            audio_files (List[str]): Liste des chemins des fichiers audio [question_audio, answer_audio]
+            audio_info (List[Dict]): Liste des informations audio [
+                {
+                    'path': str,  # Chemin du fichier audio
+                    'text': str,  # Texte correspondant
+                    'duration': float  # Durée en secondes
+                }
+            ]
             
         Returns:
             CompositeVideoClip: Le clip vidéo créé
         """
         try:
             # Vérification que les fichiers audio existent
-            for audio_file in audio_files:
-                if not os.path.exists(audio_file):
-                    raise FileNotFoundError(f"Le fichier audio {audio_file} n'existe pas")
+            for info in audio_info:
+                audio_path = info['path']
+                if not os.path.exists(audio_path):
+                    raise FileNotFoundError(f"Le fichier audio {audio_path} n'existe pas")
             
             # --- Création des clips audio ---
-            question_audio = AudioFileClip(audio_files[0])
-            answer_audio = AudioFileClip(audio_files[1])
+            question_audio = AudioFileClip(audio_info[0]['path'])
+            answer_audio = AudioFileClip(audio_info[1]['path'])
             
             # Calcul des durées
-            part1_duration = question_audio.duration
+            part1_duration = audio_info[0]['duration']
             timer_duration = 3.0  # Durée du timer
-            part2_duration = answer_audio.duration
+            part2_duration = audio_info[1]['duration']
             
             # --- Création des clips vidéo ---
             # Partie 1 : Question et choix
@@ -212,7 +231,6 @@ class VideoCreator:
                 color=self.colors['text']
             )
         
-            
             # Création des boîtes pour les choix (tous en style normal)
             choices_boxes = []
             
@@ -238,29 +256,29 @@ class VideoCreator:
             part1 = part1.with_audio(question_audio)
             part1 = part1.with_duration(part1_duration)
             
-            # # --- Partie Timer ---
-            # Création d'une barre de progression stylisée au lieu du timer circulaire
+            # --- Partie Timer ---
             timer_clip = self._create_progress_bar_timer(timer_duration, question_box, choices_boxes)
             
-            # # Partie 2 : Réponse
-            
+            # --- Partie 2 : Réponse ---
             # Création des boîtes pour la partie 2 (avec la bonne réponse en vert)
             choices_boxes_part2 = []
             correct_answer_index = int(question_data['answer'])
             for i in range(1, len(question_data['choices']) + 1):
                 if i == correct_answer_index:
                     choice_box = self._create_text_box(
-                    question_data['choices'][str(i)],
-                    fontsize=self.config["video"]["choices_font_size"],
-                    color=self.colors['text'],
-                    is_correct=True)
+                        question_data['choices'][str(i)],
+                        fontsize=self.config["video"]["choices_font_size"],
+                        color=self.colors['text'],
+                        is_correct=True
+                    )
                     choices_boxes_part2.append(choice_box)
                 else:
                     choices_boxes_part2.append(choices_boxes[i-1])
-                    
+            
             question_box2 = question_box.with_duration(part2_duration)
-             # Calcul des positions optimales
+            # Calcul des positions optimales
             question_box2, choices_boxes_part2 = self._calculate_text_positions(question_box2, choices_boxes_part2)
+            
             # Création de la deuxième partie
             part2 = CompositeVideoClip(
                 [question_box2] + choices_boxes_part2,
@@ -268,15 +286,9 @@ class VideoCreator:
             )
             part2.fps = self.config["video"]["fps"]
             part2 = part2.with_audio(answer_audio)
-            
-            # Assurons-nous que part2 a une durée définie
             part2 = part2.with_duration(part2_duration)
-
-            # --- Assemblage final ---
-            # Vérifier que tous les clips ont une durée définie
-            logger.info(f"Duration part1: {part1.duration}, timer_clip: {timer_clip.duration}, part2: {part2.duration}")
             
-            # N'inclure que les clips avec une durée valide
+            # --- Assemblage final ---
             final_clips = []
             if part1.duration is not None:
                 final_clips.append(part1)
@@ -289,6 +301,7 @@ class VideoCreator:
                 raise ValueError("Aucun clip vidéo valide à concaténer")
                 
             final_clip = concatenate_videoclips(final_clips)
+            final_clip.fps = self.config["video"]["fps"]
             
             return final_clip
             
@@ -434,12 +447,14 @@ class VideoCreator:
             blank = ColorClip(size=(self.width, self.height), color=(0, 0, 0, 0))
             return blank.with_duration(timer_duration)
 
-    def concatenate_videos(self, video_clips: List[CompositeVideoClip]) -> str:
+    def concatenate_videos(self, video_clips: List[CompositeVideoClip], srt_file: str = None, audio_info: List[Dict] = None) -> str:
         """
         Concatène plusieurs clips vidéo en une seule vidéo.
         
         Args:
             video_clips (List[CompositeVideoClip]): Liste des clips vidéo à concaténer
+            srt_file (str, optional): Chemin vers le fichier SRT des sous-titres
+            audio_info (List[Dict], optional): Informations sur les fichiers audio pour le calcul des offsets
             
         Returns:
             str: Chemin de la vidéo finale
@@ -470,8 +485,44 @@ class VideoCreator:
             # Concaténation
             final_clip = concatenate_videoclips(valid_clips)
             final_clip.fps = self.config["video"]["fps"]
+            
             # Calcul de la durée totale
             total_duration = final_clip.duration
+            
+            # Gestion des sous-titres si fournis et activés dans la configuration
+            if self.config["subtitles"]["enabled"] and srt_file and os.path.exists(srt_file):
+                try:
+                    logger.info(f"Ajout des sous-titres depuis {srt_file}")
+                    
+                    # Définir la position des sous-titres en fonction de la position du dernier choix
+                    subtitle_position = ('center', 'bottom')  # Position par défaut
+                    
+                    # Si la position du dernier choix est disponible, l'utiliser
+                    if hasattr(self, 'last_choice_bottom_y') and self.last_choice_bottom_y is not None:
+                        extra_spacing = self.config["subtitles"].get("extra_spacing", 30)
+                        subtitle_y = self.last_choice_bottom_y + extra_spacing
+                        
+                        # Vérifier que la position n'est pas trop basse
+                        max_y = self.height - 100  # Garder une marge en bas
+                        subtitle_y = min(subtitle_y, max_y)
+                        
+                        # Position en pixels absolus
+                        subtitle_position = ('center', subtitle_y)
+                        logger.info(f"Positionnement des sous-titres à y={subtitle_y} (sous le dernier choix)")
+                    else:
+                        logger.info("Position du dernier choix non disponible, utilisation de la position par défaut")
+                    
+                    # Créer le générateur de sous-titres
+                    make_textclip = lambda txt: self._create_subtitle_clip(txt, self.height)
+                    
+                    # Charger les sous-titres avec la position calculée
+                    subtitles = SubtitlesClip(srt_file, make_textclip=make_textclip).with_position(subtitle_position)
+                    
+                    # Ajouter les sous-titres à la vidéo
+                    final_clip = CompositeVideoClip([final_clip, subtitles])
+                    logger.info("Sous-titres ajoutés avec succès")
+                except Exception as e:
+                    logger.error(f"Erreur lors de l'ajout des sous-titres: {str(e)}")
             
             # Vérification de la durée de la musique
             music_duration = self.music.duration
@@ -487,8 +538,6 @@ class VideoCreator:
             # On s'assure que l'audio de la vidéo est valide
             if hasattr(final_clip, 'audio') and final_clip.audio is not None:
                 # Mixage de l'audio des vidéos avec la musique
-                # Réduire le volume de la musique manuellement (0.1 = 10% du volume)
-                # reduced_volume_music = music_clip.fx.MultiplyVolume(0.1)
                 final_audio = CompositeAudioClip([final_clip.audio, music_clip])
                 final_clip = final_clip.with_audio(final_audio)
             else:
@@ -496,7 +545,6 @@ class VideoCreator:
                 final_clip = final_clip.with_audio(music_clip)
             
             # Ajout de la vidéo de fond
-            # video_path = self.background_manager.get_background_video(self.theme)
             video_path = self.config["path_assets"]["backgrounds"] + '/' + self.config["video"]["background"]
             logger.info(f"Chemin de la vidéo de fond: {video_path}")
             output_path = str(self.temp_dir) + '/' + self._get_unique_filename(prefix="final")
@@ -505,60 +553,28 @@ class VideoCreator:
                 try:
                     logger.info("Chargement de la vidéo de fond...")
                     background = VideoFileClip(video_path)
-                    logger.info(f"Dimensions originales du background: {background.size}")
-                    # Ajustement de la taille
-                    logger.info(f"Redimensionnement à {self.width}x{self.height}")
                     background = background.resized((self.width, self.height))
-                    logger.info(f"Nouvelles dimensions du background: {background.size}")
-                    # Boucle si nécessaire
-                    logger.info(f"Durée du background: {background.duration}s, durée totale: {total_duration}s")
+                    
                     if background.duration < total_duration:
                         n_loops = int(total_duration / background.duration) + 1
-                        logger.info(f"Création de {n_loops} boucles du background")
                         background = background.loop(n=n_loops)
-                    # 
+                    
                     background = background.subclipped(0, total_duration)
-                    logger.info("Background préparé avec succès")
                     
-                    # 
-                    # Création du clip composite
-                    logger.info("Création du clip composite...")
-                    # 
-                    # On crée d'abord le clip avec le background
-                    background_clip = background.with_position(('center', 'center'))
-                    
-                    # On crée le clip final avec l'audio
-                    final_clip = final_clip.with_position(('center', 'center'))
-                    
-                    # On crée le composite avec les deux clips - en s'assurant que le clip principal est visible
-                    logger.info(f"Taille du background: {background_clip.size}, taille du clip principal: {final_clip.size}")
-                    final_composite = CompositeVideoClip(
-                        [background_clip, final_clip],
-                        size=(self.width, self.height),
-                        use_bgclip=True
+                    # Création du clip composite final
+                    final_clip = CompositeVideoClip(
+                        [background.with_position(('center', 'center')), final_clip.with_position(('center', 'center'))],
+                        size=(self.width, self.height)
                     )
-                    final_composite.fps = self.config["video"]["fps"]
+                    final_clip.fps = self.config["video"]["fps"]
                     
-                    # On s'assure que l'audio est préservé
                     if hasattr(final_clip, 'audio') and final_clip.audio is not None:
-                        final_composite = final_composite.with_audio(final_clip.audio)
+                        final_clip = final_clip.with_audio(final_clip.audio)
                     
-                    # On remplace final_clip par le composite
-                    final_clip = final_composite
-                    
-                    logger.info("Superposition terminée avec succès")
-                    # 
-                    # 
                 except Exception as e:
                     logger.error(f"Erreur lors de la préparation du background: {str(e)}")
                     logger.error("Utilisation de la vidéo sans background")
-                    # En cas d'erreur, on continue sans le background
-                    pass
                     
-                    
-                    # Sauvegarde avec un nom unique
-                    output_path = str(self.temp_dir) + '/' + self._get_unique_filename(prefix="final")
-                
             final_clip.write_videofile(
                 str(output_path),
                 fps=self.config["video"]["fps"],
@@ -567,7 +583,7 @@ class VideoCreator:
                 preset='ultrafast',
                 threads=8,
                 logger="bar"
-                )
+            )
             final_clip.close()
             if 'background' in locals():
                 background.close()
@@ -586,4 +602,119 @@ class VideoCreator:
             if hasattr(self, 'music'):
                 self.music.close()
         except Exception as e:
-            logger.error(f"Erreur lors du nettoyage des fichiers temporaires: {str(e)}") 
+            logger.error(f"Erreur lors du nettoyage des fichiers temporaires: {str(e)}")
+
+    def _make_background(self, size, bg_color, corner_radius):
+        """
+        Crée un fond avec coins arrondis pour les sous-titres.
+        
+        Args:
+            size (tuple): Dimensions (largeur, hauteur)
+            bg_color (list): Couleur de fond [R, G, B]
+            corner_radius (int): Rayon des coins arrondis
+            
+        Returns:
+            tuple: (fond, masque)
+        """
+        w, h = size
+        mask = np.zeros((h, w), dtype=np.uint8)
+        
+        # Créer les coins arrondis
+        r = corner_radius
+        for i in range(h):
+            for j in range(w):
+                # Vérifier les quatre coins
+                if (j < r and i < r and (j-r)**2 + (i-r)**2 >= r**2) or \
+                    (j < r and i >= h-r and (j-r)**2 + (i-(h-r))**2 >= r**2) or \
+                    (j >= w-r and i < r and (j-(w-r))**2 + (i-r)**2 >= r**2) or \
+                    (j >= w-r and i >= h-r and (j-(w-r))**2 + (i-(h-r))**2 >= r**2):
+                    mask[i, j] = 0
+                else:
+                    mask[i, j] = 255
+                        
+        # Créer l'image de fond
+        color_array = np.array(bg_color).astype('uint8')
+        bg = np.zeros((h, w, 3), dtype=np.uint8)
+        for i in range(3):  # RGB channels
+            bg[:, :, i] = color_array[i]
+        
+        return bg, mask/255.0  # Normaliser le masque 
+
+    def _create_subtitle_clip(self, txt, video_height):
+        """
+        Crée un clip de sous-titre stylisé avec fond arrondi, optimisé pour les mots individuels.
+        Le positionnement est géré séparément dans concatenate_videos.
+        
+        Args:
+            txt (str): Texte du sous-titre (un mot individuel)
+            video_height (int): Hauteur de la vidéo (non utilisé pour le positionnement)
+            
+        Returns:
+            CompositeVideoClip: Clip du sous-titre
+        """
+        # Paramètres des sous-titres tirés de la configuration
+        font_size = self.config["subtitles"].get("font_size", 70)
+        bg_color = self.config["subtitles"].get("background_color", [220, 20, 20])
+        text_color = self.config["subtitles"].get("text_color", "#ffffff")
+        stroke_color = self.config["subtitles"].get("stroke_color", "#000000")
+        stroke_width = self.config["subtitles"].get("stroke_width", 1)
+        corner_radius = self.config["subtitles"].get("corner_radius", 15)
+        padding_x = self.config["subtitles"].get("padding_x", 20)
+        padding_y = self.config["subtitles"].get("padding_y", 10)
+        
+        # Adaptations pour les mots individuels
+        # Augmentation de la taille du texte pour les mots courts
+        adjusted_font_size = font_size
+        if len(txt.strip()) <= 3:
+            adjusted_font_size = int(font_size * 1.3)  # 30% plus grand pour les petits mots
+        
+        # Création du texte avec options optimisées
+        text_clip = TextClip(
+            text=txt.strip(),
+            font_size=adjusted_font_size,
+            color=text_color,
+            stroke_color=stroke_color,
+            stroke_width=stroke_width,
+            font=self.config["video"]["font"]
+        )
+        
+        # Obtenir la taille du texte et ajouter une marge
+        text_w, text_h = text_clip.size
+        bg_w, bg_h = text_w + 2*padding_x, text_h + 2*padding_y
+        
+        # Création du fond avec coins arrondis
+        bg_img, mask_img = self._make_background((bg_w, bg_h), bg_color, corner_radius)
+        
+        # Création d'un clip de couleur pour le fond
+        bg_clip = ColorClip(size=(bg_w, bg_h), color=bg_color)
+        
+        # Création d'un clip image pour le masque
+        mask_clip = ImageClip(mask_img, is_mask=True)
+        
+        # Application du masque au fond
+        bg_clip = bg_clip.with_mask(mask_clip)
+        
+        # Positionnement du texte au centre du fond
+        text_clip = text_clip.with_position('center')
+        
+        # Composition du texte et du fond
+        final_clip = CompositeVideoClip([bg_clip, text_clip], size=(bg_w, bg_h))
+        
+        return final_clip
+
+    def _format_time(self, seconds: float) -> str:
+        """
+        Convertit un nombre de secondes en format SRT (HH:MM:SS,mmm).
+        
+        Args:
+            seconds (float): Nombre de secondes
+            
+        Returns:
+            str: Temps formaté pour SRT
+        """
+        hours = int(seconds // 3600)
+        minutes = int((seconds % 3600) // 60)
+        seconds_remaining = seconds % 60
+        milliseconds = int((seconds_remaining % 1) * 1000)
+        seconds = int(seconds_remaining)
+        return f"{hours:02d}:{minutes:02d}:{seconds:02d},{milliseconds:03d}" 
