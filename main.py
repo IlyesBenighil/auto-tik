@@ -32,7 +32,10 @@ class VideoGenerator:
         
         # Initialisation des composants
         self.theme_selector = ThemeSelector(config=self.config)
-        self.question_generator = QuestionGenerator(num_questions=self.config["num_questions"], config=self.config)
+        self.question_generator = QuestionGenerator(
+            num_questions=self.config["prompt"]["num_questions"],
+            config=self.config
+            )
         parser = argparse.ArgumentParser(description="Génération de vidéo")
         parser.add_argument("theme", nargs="?", help="Thème de la vidéo", default="None")
         args = parser.parse_args()

@@ -34,8 +34,12 @@
         "use_whisperx": true,
         "word_by_word": true
     },
-    "num_questions": 8,
-    "num_choices": 3,
+    "prompt": {
+        "path": "src/prompts/quiz_prompt.txt",
+        "difficulty": "difficile",
+        "num_questions": 1,
+        "num_choices": 3
+    },
     "size_question": 200,
     "model": "open-mistral-nemo",
     "path_assets": {

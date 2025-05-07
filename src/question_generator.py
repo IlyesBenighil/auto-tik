@@ -1,9 +1,13 @@
 import os
 import json
 import re
+import logging
+from pathlib import Path
 from typing import Dict, Any, List
 from mistralai import Mistral
 from dotenv import load_dotenv
+
+logger = logging.getLogger(__name__)
 
 class QuestionGenerator:
     def __init__(self, config: dict, num_questions: int = 5):
@@ -25,6 +29,51 @@ class QuestionGenerator:
         # Initialisation avec la nouvelle API
         self.client = Mistral(api_key=api_key)
         print("API Mistral initialisée avec succès!")
+        
+        # Chargement du prompt depuis le fichier si configuré
+        self.prompt_template_unformated = self._load_prompt_template()
+        
+    def _load_prompt_template(self) -> str:
+        """
+        Charge le template du prompt depuis le fichier.
+        
+        Returns:
+            str: Le contenu du fichier de prompt
+        """
+        prompt_path = Path(self.config["prompt"]["path"])
+        if not prompt_path.exists():
+            raise FileNotFoundError(f"Le fichier de prompt n'existe pas: {prompt_path}")
+            
+        with open(prompt_path, 'r', encoding='utf-8') as f:
+            return f.read()
+            
+    def _format_prompt(self, theme: str) -> str:
+        """
+        Formate le prompt avec les variables.
+        
+        Args:
+            theme (str): Le thème du quiz
+            difficulty (str): Le niveau de difficulté
+            
+        Returns:
+            str: Le prompt formaté
+        """
+        
+        # Utiliser le template chargé depuis le fichier
+        prompt = self.prompt_template_unformated
+        
+        # Variables à remplacer
+        replacements = {
+            "theme": theme,
+            "difficulty": self.config["prompt"]["difficulty"],
+            "num_questions": str(self.config["prompt"]["num_questions"]),
+            "num_choices": str(self.config["prompt"]["num_choices"])
+        }
+        # Remplacer les variables dans le prompt
+        for var_name, var_value in replacements.items():
+            prompt = prompt.replace(f"{{{var_name}}}", var_value)
+
+        return prompt
         
     def _clean_json_string(self, text: str) -> str:
         """Nettoie une chaîne de caractères pour extraire un JSON valide."""
@@ -87,129 +136,56 @@ class QuestionGenerator:
         return json_str
         
     def generate_question(self, theme: str) -> List[Dict[str, Any]]:
-        num_choices = self.config["num_choices"]
-        choices = str(tuple(str(i) for i in range(1, num_choices + 1)))
-#         prompt = f"""Génère EXACTEMENT {self.config["num_questions"]} questions EN FRANCAIS de type QCM. Tu vas commencer par dire le début d'un 
-#         proverbe en français et les choix de réponses seront la fin de ce proverbe.
-#         - La première question doit absolument être un proverbe qui attire l'attention.
-#         - Propose {self.config["num_choices"]} choix de réponse numérotés {choices}.
-#         - Les choix de réponse doivent être différents les uns des autres et doivent être cours.
-#         - La phrase doit être courte (max 16 mots).
-#         - Indique laquelle est la bonne réponse.
-#         - La réponse doit être correcte.
-#         - Les questions doivent être de plus en plus difficiles.
-#         Exemple de sortie :
-#         {{
-#   "questions": [
-#     {{
-#       "question": "Texte de la phrase ou proverbe connue",
-#       "choices": {{
-#         "1": "Choix 1",
-#         "2": "Choix 2",
-#         "3": "Choix 3"
-#       }},
-#       "answer": "3"
-#     }},
-#   ]
-# }}
-# A toi de me donner le QCM en JSON :
-        # """
-        try:
-            prompt = f"""
-            Génère EXACTEMENT {self.config["num_questions"]} questions EN FRANCAIS de type QCM sur le thème de '{theme}'.
-
-Pour chaque question :
-- Propose {self.config["num_choices"]} choix de réponse numérotés {choices}.
-- Les questions ne doivent pas se repeter ni se ressembler.
-- Les choix doivent être différents les uns des autres et doivent être cours (max 3 mots).
-- La question doit être courte (max 13 mots).
-- Indique laquelle est la bonne réponse.
-- La réponse doit être correcte.
-- Les questions doivent être variées et couvrir différents aspects du thème.
-- Les questions doivent être de plus en plus difficiles.
-- Les questions ne doivent pas être trop longues, de même pour les choix.
-- Les questions doivent toujours être en français, méme si elle parle d'une autre lanngue ou pays.
-- Chaque choix de question doit contenir un choix vraiment débile.
-- Chaque choix de question doit contenir un choix vraiment débile.
-- TOUTES LES QUESTIONS DOIVENT ETRE SUR LE THEME DE '{theme}'.
-- IMPORTANT: Génère EXACTEMENT {self.config["num_questions"]} questions, pas plus, pas moins.
-
-Le format de sortie doit être strictement en JSON comme ceci :
-
-{{
-  "questions": [
-    {{
-      "question": "Texte de la question",
-      "choices": {{
-        "1": "Choix 1",
-        "2": "Choix 2",
-        "3": "Choix 3"
-      }},
-      "answer": "3"
-    }},
-  ]
-}}
-
-A toi de me donner le QCM en JSON :"""
-            
-            # Structure des messages pour la nouvelle API
-            messages = [
-                {"role": "user", "content": prompt}
-            ]
-            
-            # Appel à l'API Mistral avec la nouvelle API
-            response = self.client.chat.complete(
-                model=self.config["model"],
-                messages=messages,
-                temperature=0.7,
-                max_tokens=5000,
-                top_p=0.95
-            )
-            
-            # Récupération de la réponse (nouvelle structure)
-            response_text = response.choices[0].message.content
-            
-            # Nettoyage et parsing du JSON
-            json_str = self._clean_json_string(response_text)
-
-            # Parse du JSON
-            try:
-                question_data = json.loads(json_str)
-            except json.JSONDecodeError as e:
-                print(f"\nErreur de parsing JSON: {str(e)}")
-                print(f"Position de l'erreur: {e.pos}")
-                print(f"Ligne: {e.lineno}, Colonne: {e.colno}")
-                raise
-            
-            # Validation de la structure
-            if "questions" not in question_data or not isinstance(question_data["questions"], list):
-                raise ValueError("Format de réponse invalide: 'questions' doit être une liste")
-            
-            # Validation de chaque question
-            validated_questions = []
-            for question in question_data["questions"]:
-                if self.validate_question(question):
-                    validated_questions.append({
-                        'question': question['question'].strip(),
-                        'choices': question['choices'],
-                        'answer': question['answer'].strip()
-                    })
-            
-            if not validated_questions:
-                raise ValueError("Aucune question valide n'a été générée")
-            
-            # Limite le nombre de questions au nombre demandé
-            validated_questions = validated_questions[:self.num_questions]
-            
-            # Si on n'a pas assez de questions valides, on génère à nouveau
-            if len(validated_questions) < self.num_questions:
-                print(f"Pas assez de questions valides ({len(validated_questions)}/{self.num_questions}), nouvelle tentative...")
-                return self.generate_question(theme)
-            
-            return validated_questions
-            
-        except Exception as e:
-            raise Exception(f"Erreur lors de la génération des questions: {str(e)}")
+        # Utiliser le prompt formaté avec les variables
+        prompt = self._format_prompt(theme)
+        
+        # Structure des messages pour la nouvelle API
+        messages = [
+            {"role": "user", "content": prompt}
+        ]
+        
+        # Appel à l'API Mistral avec la nouvelle API
+        response = self.client.chat.complete(
+            model=self.config["model"],
+            messages=messages,
+            temperature=0.7,
+            max_tokens=5000,
+            top_p=0.95
+        )
+        
+        # Récupération de la réponse (nouvelle structure)
+        response_text = response.choices[0].message.content
+        
+        # Nettoyage et parsing du JSON
+        json_str = self._clean_json_string(response_text)
+        # Parse du JSON
+        question_data = json.loads(json_str)
+        # Validation de la structure
+        if "questions" not in question_data or not isinstance(question_data["questions"], list):
+            raise ValueError("Format de réponse invalide: 'questions' doit être une liste")
+        
+        # Validation de chaque question
+        validated_questions = []
+        for question in question_data["questions"]:
+            if self.validate_question(question):
+                validated_questions.append({
+                    'question': question['question'].strip(),
+                    'choices': question['choices'],
+                    'answer': question['answer'].strip()
+                })
+        
+        if not validated_questions:
+            raise ValueError("Aucune question valide n'a été générée")
+        
+        # Limite le nombre de questions au nombre demandé
+        validated_questions = validated_questions[:self.num_questions]
+        
+        # Si on n'a pas assez de questions valides, on génère à nouveau
+        if len(validated_questions) < self.num_questions:
+            print(f"Pas assez de questions valides ({len(validated_questions)}/{self.num_questions}), nouvelle tentative...")
+            return self.generate_question(theme)
+        
+        return validated_questions 
 
     def validate_question(self, question_data: Dict) -> bool:
         """
@@ -221,7 +197,7 @@ A toi de me donner le QCM en JSON :"""
         Returns:
             bool: True si la question est valide, False sinon
         """
-        num_choices = self.config["num_choices"]
+        num_choices = self.config["prompt"]["num_choices"]
         try:
             required_fields = ["question", "choices", "answer"]
             if not all(key in question_data for key in required_fields):

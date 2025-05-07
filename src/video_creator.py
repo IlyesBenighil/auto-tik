@@ -239,7 +239,7 @@ class VideoCreator:
             # Création des boîtes pour les choix (tous en style normal)
             choices_boxes = []
             
-            for i in range(1, self.config["num_choices"] + 1):
+            for i in range(1, self.config["prompt"]["num_choices"] + 1):
                 choice_text = f"{i}. {question_data['choices'][str(i)]}"
                 choice_box = self._create_text_box(
                     choice_text,

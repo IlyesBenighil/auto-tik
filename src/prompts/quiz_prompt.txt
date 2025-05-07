@@ -1,0 +1,22 @@
+Génère un quiz très {difficulty} au format JSON sur le thème {theme}, composé de {num_questions} questions.
+Contraintes :
+1. La première question doit attirer l'attention (originale, surprenante, amusante, provocante mais toujours en lien avec le thème).
+2. Chaque question doit avoir {num_choices} choix de réponse, dont au moins un choix doit être drôle ou absurde.
+3. Une seule réponse est correcte.
+4. La bonne réponse ne doit pas toujours être à le même position index.
+5. Le format doit être strictement le suivant :
+{{
+  "questions": [
+    {{
+      "question": "Texte de la question",
+      "choices": {{
+        "1": "Choix 1",
+        "2": "Choix 2",
+        "3": "Choix 3"
+      }},
+      "answer": "3"
+    }}
+  ]
+}}
+
+Génère uniquement le JSON, sans texte introductif ni explication.
