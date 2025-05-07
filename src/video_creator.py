@@ -539,28 +539,30 @@ class VideoCreator:
                 # Si pas d'audio, on utilise juste la musique
                 final_clip = final_clip.with_audio(music_clip)
             
-            # Ajout de la vidéo de fond
-            background = self.config["path_assets"]["backgrounds"] + '/' + self.config["video"]["background"]
-
-            background = self.config["path_assets"]["backgrounds"] + '/' + self.config["video"]["background"]
-            logger.info(f"Chemin de la vidéo de fond: {background}")
+            # Récupération du fond vidéo, si aucun fond vidéo n'est défini, on génère un fond vidéo depuis une image génré par ia.
+            background_video_file = self.config["video"]["background"];
+            background_video_path = self.config["path_assets"]["backgrounds"] + '/' + background_video_file
+            if background_video_file == "":
+                background_video_path = self.background_manager.get_background(self.theme)
+            
+            logger.info(f"Chemin de la vidéo de fond: {background_video_path}")
             output_path = str(self.temp_dir) + '/' + self._get_unique_filename(prefix="final")
 
-            if background:
+            if background_video_path:
                 try:
                     logger.info("Chargement de la vidéo de fond...")
-                    background = VideoFileClip(background)
-                    background = background.resized((self.width, self.height))
+                    background_video_path = VideoFileClip(background_video_path)
+                    background_video_path = background_video_path.resized((self.width, self.height))
                     
-                    if background.duration < total_duration:
-                        n_loops = int(total_duration / background.duration) + 1
-                        background = background.loop(n=n_loops)
+                    if background_video_path.duration < total_duration:
+                        n_loops = int(total_duration / background_video_path.duration) + 1
+                        background_video_path = background_video_path.loop(n=n_loops)
                     
-                    background = background.subclipped(0, total_duration)
+                    background_video_path = background_video_path.subclipped(0, total_duration)
                     
                     # Création du clip composite final
                     final_clip = CompositeVideoClip(
-                        [background.with_position(('center', 'center')), final_clip.with_position(('center', 'center'))],
+                        [background_video_path.with_position(('center', 'center')), final_clip.with_position(('center', 'center'))],
                         size=(self.width, self.height)
                     )
                     final_clip.fps = self.config["video"]["fps"]
@@ -583,7 +585,7 @@ class VideoCreator:
             )
             final_clip.close()
             if 'background' in locals():
-                background.close()
+                background_video_path.close()
             return str(output_path)
             
         except Exception as e:

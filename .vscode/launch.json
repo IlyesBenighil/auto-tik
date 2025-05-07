@@ -14,7 +14,8 @@
             "env": {
                 "PYTHONPATH": "${workspaceFolder}"
             },
-            "cwd": "${workspaceFolder}"
+            "cwd": "${workspaceFolder}",
+            "args": ["France"]
         }
     ]
 }

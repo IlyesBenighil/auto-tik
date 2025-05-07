@@ -1,11 +1,12 @@
 {
+    "language": "japonais",
     "video": {
         "width": 1080,
         "height": 1920,
         "fps": 30,
         "duration": 15,
         "spacing": 110,
-        "question_font_size": 80,
+        "question_font_size": 60,
         "choices_font_size": 60,
         "background_color": "#000000",
         "text_color": "white",
@@ -14,8 +15,8 @@
         "choice_correct_highlight": "(0, 255, 0, 255)",
         "choice_background": "(0, 0, 0, 153)",
         "choice_highlight": "(255, 255, 255, 204)",
-        "font": "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-        "background": "camp.mp4"
+        "font": "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+        "background": ""
     },
     "subtitles": {
         "font_size": 70,
@@ -29,7 +30,7 @@
         "bottom_margin": 50,
         "extra_spacing": 30,
         "model_size": "medium",
-        "language": "fr",
+        "language": "ja",
         "enabled": true,
         "use_whisperx": true,
         "word_by_word": true
@@ -37,11 +38,14 @@
     "prompt": {
         "path": "src/prompts/quiz_prompt.txt",
         "difficulty": "difficile",
-        "num_questions": 1,
+        "num_questions": 2,
         "num_choices": 3
     },
     "size_question": 200,
-    "model": "open-mistral-nemo",
+    "model": {
+        "type": "gemini",
+        "name": "gemini-2.5-pro-exp-03-25"
+    },
     "path_assets": {
         "temp": "temp",
         "backgrounds": "assets/backgrounds/videos",
@@ -78,9 +82,9 @@
         "psychologie"
     ],
     "tts": {
-        "language": "fr-FR",
-        "voice": "fr-FR-Polyglot-1",
-        "gender": "male"
+        "language": "ja-jp",
+        "voice": "ja-JP-Chirp3-HD-Leda",
+        "gender": "female"
     },
     "storage": {
         "local_path": "assets/generated"

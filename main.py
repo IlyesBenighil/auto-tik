@@ -5,6 +5,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 import argparse
 
+from src.background_manager import BackgroundManager
 from src.theme_selector import ThemeSelector
 from src.question_generator import QuestionGenerator
 from src.tts_engine import TTSEngine
@@ -47,6 +48,7 @@ class VideoGenerator:
         self.video_creator = VideoCreator(theme=self.theme, config=self.config)
         self.storage_manager = StorageManager(config=self.config)
         self.srt_generator = SRTGenerator(config=self.config)
+        self.background_manager = BackgroundManager()
 
     def _load_config(self):
         """Charge la configuration depuis le fichier settings.json"""

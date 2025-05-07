@@ -12,23 +12,15 @@ logger = logging.getLogger(__name__)
 class QuestionGenerator:
     def __init__(self, config: dict, num_questions: int = 5):
         """
-        Initialise le générateur de questions avec l'API Mistral.
+        Initialise le générateur de questions avec le bon modèle.
         
         Args:
             num_questions (int): Nombre de questions à générer (par défaut: 5)
         """
         self.config = config
         self.num_questions = num_questions
-        print("Initialisation de l'API Mistral...")
-        load_dotenv(override=True)
-        
-        api_key = os.getenv("MISTRAL_API_KEY")
-        if not api_key:
-            raise ValueError("La clé API Mistral n'est pas définie. Veuillez définir la variable d'environnement MISTRAL_API_KEY")
-        
-        # Initialisation avec la nouvelle API
-        self.client = Mistral(api_key=api_key)
-        print("API Mistral initialisée avec succès!")
+        self.model = config["model"]["type"]
+
         
         # Chargement du prompt depuis le fichier si configuré
         self.prompt_template_unformated = self._load_prompt_template()
@@ -67,7 +59,8 @@ class QuestionGenerator:
             "theme": theme,
             "difficulty": self.config["prompt"]["difficulty"],
             "num_questions": str(self.config["prompt"]["num_questions"]),
-            "num_choices": str(self.config["prompt"]["num_choices"])
+            "num_choices": str(self.config["prompt"]["num_choices"]),
+            "language": self.config["language"]
         }
         # Remplacer les variables dans le prompt
         for var_name, var_value in replacements.items():
@@ -139,22 +132,8 @@ class QuestionGenerator:
         # Utiliser le prompt formaté avec les variables
         prompt = self._format_prompt(theme)
         
-        # Structure des messages pour la nouvelle API
-        messages = [
-            {"role": "user", "content": prompt}
-        ]
-        
-        # Appel à l'API Mistral avec la nouvelle API
-        response = self.client.chat.complete(
-            model=self.config["model"],
-            messages=messages,
-            temperature=0.7,
-            max_tokens=5000,
-            top_p=0.95
-        )
-        
         # Récupération de la réponse (nouvelle structure)
-        response_text = response.choices[0].message.content
+        response_text = self.send_request_and_get_answer(prompt)
         
         # Nettoyage et parsing du JSON
         json_str = self._clean_json_string(response_text)
@@ -224,3 +203,40 @@ class QuestionGenerator:
 
         except Exception:
             return False 
+        
+        
+    def send_request_and_get_answer(self, prompt: str) -> str:
+        """
+        Envoie une requête à la bonne api.
+        
+        Args:
+            prompt (str): Le prompt à envoyer à l'API Mistral
+        """
+        model_name = self.config["model"]["name"]
+        load_dotenv(override=True)
+        if self.model == "mistral":
+            from mistralai import Mistral
+            print("Initialisation de l'API Mistral...")
+            api_key = os.getenv("MISTRAL_API_KEY")
+            client = Mistral(api_key=api_key)
+            print("API Mistral initialisée avec succès!")
+            messages = [
+                {"role": "user", "content": prompt}
+            ]
+            response = client.chat.complete(
+                model=model_name,
+                messages=messages,
+                temperature=0.7,
+                max_tokens=5000,
+                top_p=0.95
+            )
+            return response.choices[0].message.content
+        if self.model == "gemini":
+            from google import genai
+            client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+            response = client.models.generate_content(
+                model=model_name,
+                contents=prompt
+            )
+            return response.text
+            

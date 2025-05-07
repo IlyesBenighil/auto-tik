@@ -1,0 +1,40 @@
+# Prompts pour Gemini Image Generator
+# Utilisez ces prompts pour générer des images thématiques pour vos quiz
+
+# Format de base pour les quiz
+Crée une image pour un quiz sur le thème de {theme}. L'image doit être captivante, éducative et adaptée à une audience TikTok. Style {style}.
+
+# Prompts spécifiques par thème
+
+## Géographie
+Crée une carte du monde stylisée et colorée mettant en évidence {region}. Inclus des éléments visuels représentatifs comme {element}. Style {style}.
+
+## Histoire
+Représente un moment historique important de {period} avec {person} dans un style {style}. L'image doit être dramatique et éducative.
+
+## Sciences
+Illustre le concept scientifique de {concept} avec des éléments visuels clairs et explicatifs. Utilise des couleurs vives et un style {style}.
+
+## Sports
+Crée une composition dynamique représentant {sport} avec des éléments graphiques stylisés. Inclus des équipements et symboles reconnaissables.
+
+## Culture Pop
+Représente des éléments iconiques de {franchise} dans un style {style}, avec une composition qui capture l'essence du sujet.
+
+## Musique
+Crée une composition visuelle représentant le style musical {genre} avec des instruments, symboles et éléments visuels associés à ce genre.
+
+# Variations de style
+- cartoon: style dessin animé avec des couleurs vives et des contours nets
+- réaliste: style photoréaliste avec des détails précis
+- minimaliste: style épuré avec peu d'éléments et des couleurs plates
+- rétro: style vintage inspiré des décennies passées
+- futuriste: style moderne avec des éléments technologiques
+- aquarelle: style peinture avec des effets d'aquarelle et des transitions douces
+
+# Instructions pour améliorer les résultats
+- Ajouter "haute qualité, 4K, détaillé" à la fin du prompt
+- Éviter les textes trop longs dans l'image
+- Privilégier des compositions claires et lisibles
+- Spécifier "sans texte" si vous ne voulez pas de texte dans l'image
+- Ajouter "pour TikTok" pour adapter le format à une présentation verticale 
