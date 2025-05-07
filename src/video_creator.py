@@ -47,6 +47,10 @@ class VideoCreator:
         
         # Sélection de la musique qui sera utilisée pour toutes les vidéos
         self.music = AudioFileClip(str(self.music_dir) + '/' + self.config["music"]["background"])
+        
+        # Position Y du bas du dernier choix
+        self.lowest_choices_y = 0
+        
         # Gestionnaire de fonds vidéo
         try:
             from src.background_manager import BackgroundManager
@@ -104,7 +108,8 @@ class VideoCreator:
         for i, choice_clip in enumerate(choices_clips):
             choices_clips_with_position.append(choice_clip.with_position(('center', current_y)))
             current_y += choice_clip.size[1] + spacing
-        
+        if current_y > self.lowest_choices_y:
+            self.lowest_choices_y = current_y
         # Stocker la position Y du bas du dernier choix pour les sous-titres
         if choices_clips:
             last_choice = choices_clips[-1]
@@ -497,20 +502,10 @@ class VideoCreator:
                     # Définir la position des sous-titres en fonction de la position du dernier choix
                     subtitle_position = ('center', 'bottom')  # Position par défaut
                     
-                    # Si la position du dernier choix est disponible, l'utiliser
-                    if hasattr(self, 'last_choice_bottom_y') and self.last_choice_bottom_y is not None:
-                        extra_spacing = self.config["subtitles"].get("extra_spacing", 30)
-                        subtitle_y = self.last_choice_bottom_y + extra_spacing
-                        
-                        # Vérifier que la position n'est pas trop basse
-                        max_y = self.height - 100  # Garder une marge en bas
-                        subtitle_y = min(subtitle_y, max_y)
-                        
-                        # Position en pixels absolus
-                        subtitle_position = ('center', subtitle_y)
-                        logger.info(f"Positionnement des sous-titres à y={subtitle_y} (sous le dernier choix)")
-                    else:
-                        logger.info("Position du dernier choix non disponible, utilisation de la position par défaut")
+                    extra_spacing = self.config["subtitles"].get("extra_spacing", 30)
+                    
+                    # Position en pixels absolus
+                    subtitle_position = ('center', self.lowest_choices_y + extra_spacing)
                     
                     # Créer le générateur de sous-titres
                     make_textclip = lambda txt: self._create_subtitle_clip(txt, self.height)
@@ -545,14 +540,16 @@ class VideoCreator:
                 final_clip = final_clip.with_audio(music_clip)
             
             # Ajout de la vidéo de fond
-            video_path = self.config["path_assets"]["backgrounds"] + '/' + self.config["video"]["background"]
-            logger.info(f"Chemin de la vidéo de fond: {video_path}")
+            background = self.config["path_assets"]["backgrounds"] + '/' + self.config["video"]["background"]
+
+            background = self.config["path_assets"]["backgrounds"] + '/' + self.config["video"]["background"]
+            logger.info(f"Chemin de la vidéo de fond: {background}")
             output_path = str(self.temp_dir) + '/' + self._get_unique_filename(prefix="final")
 
-            if video_path:
+            if background:
                 try:
                     logger.info("Chargement de la vidéo de fond...")
-                    background = VideoFileClip(video_path)
+                    background = VideoFileClip(background)
                     background = background.resized((self.width, self.height))
                     
                     if background.duration < total_duration:
@@ -581,7 +578,7 @@ class VideoCreator:
                 codec='libx264',
                 audio_codec='aac',
                 preset='ultrafast',
-                threads=8,
+                threads=16,
                 logger="bar"
             )
             final_clip.close()

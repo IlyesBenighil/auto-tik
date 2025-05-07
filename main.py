@@ -3,6 +3,7 @@ import json
 import logging
 from pathlib import Path
 from dotenv import load_dotenv
+import argparse
 
 from src.theme_selector import ThemeSelector
 from src.question_generator import QuestionGenerator
@@ -32,7 +33,13 @@ class VideoGenerator:
         # Initialisation des composants
         self.theme_selector = ThemeSelector(config=self.config)
         self.question_generator = QuestionGenerator(num_questions=self.config["num_questions"], config=self.config)
-        self.theme = self.theme_selector.get_next_theme()
+        parser = argparse.ArgumentParser(description="Génération de vidéo")
+        parser.add_argument("theme", nargs="?", help="Thème de la vidéo", default="None")
+        args = parser.parse_args()
+        theme = args.theme
+        if theme == "None":
+            theme = self.theme_selector.get_next_theme()
+        self.theme = theme
         self.tts_engine = TTSEngine(config=self.config)
         self.video_creator = VideoCreator(theme=self.theme, config=self.config)
         self.storage_manager = StorageManager(config=self.config)

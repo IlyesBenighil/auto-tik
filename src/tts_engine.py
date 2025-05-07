@@ -61,10 +61,10 @@ class TTSEngine:
         try:
             # Construction du texte complet
             text_question_and_choices = f"{question_data['question']}\n\n"
-            for i in range(1, self.config["num_choices"] + 1):
-                text_question_and_choices += f"{i} : {question_data['choices'][str(i)]}\n"
+            # for i in range(1, self.config["num_choices"] + 1):
+            #     text_question_and_choices += f"{i} : {question_data['choices'][str(i)]}\n"
                 
-            text_answer = f"\nLa réponse est : {question_data['choices'][question_data['answer']]}"
+            text_answer = f"\n{question_data['choices'][question_data['answer']]}"
             
             # Génération de l'audio
             synthesis_input_question_and_choices = texttospeech.SynthesisInput(text=text_question_and_choices)

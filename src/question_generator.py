@@ -89,20 +89,47 @@ class QuestionGenerator:
     def generate_question(self, theme: str) -> List[Dict[str, Any]]:
         num_choices = self.config["num_choices"]
         choices = str(tuple(str(i) for i in range(1, num_choices + 1)))
+#         prompt = f"""Génère EXACTEMENT {self.config["num_questions"]} questions EN FRANCAIS de type QCM. Tu vas commencer par dire le début d'un 
+#         proverbe en français et les choix de réponses seront la fin de ce proverbe.
+#         - La première question doit absolument être un proverbe qui attire l'attention.
+#         - Propose {self.config["num_choices"]} choix de réponse numérotés {choices}.
+#         - Les choix de réponse doivent être différents les uns des autres et doivent être cours.
+#         - La phrase doit être courte (max 16 mots).
+#         - Indique laquelle est la bonne réponse.
+#         - La réponse doit être correcte.
+#         - Les questions doivent être de plus en plus difficiles.
+#         Exemple de sortie :
+#         {{
+#   "questions": [
+#     {{
+#       "question": "Texte de la phrase ou proverbe connue",
+#       "choices": {{
+#         "1": "Choix 1",
+#         "2": "Choix 2",
+#         "3": "Choix 3"
+#       }},
+#       "answer": "3"
+#     }},
+#   ]
+# }}
+# A toi de me donner le QCM en JSON :
+        # """
         try:
             prompt = f"""
             Génère EXACTEMENT {self.config["num_questions"]} questions EN FRANCAIS de type QCM sur le thème de '{theme}'.
 
 Pour chaque question :
 - Propose {self.config["num_choices"]} choix de réponse numérotés {choices}.
+- Les questions ne doivent pas se repeter ni se ressembler.
 - Les choix doivent être différents les uns des autres et doivent être cours (max 3 mots).
-- La question doit être courte (max 10 mots).
+- La question doit être courte (max 13 mots).
 - Indique laquelle est la bonne réponse.
 - La réponse doit être correcte.
 - Les questions doivent être variées et couvrir différents aspects du thème.
 - Les questions doivent être de plus en plus difficiles.
 - Les questions ne doivent pas être trop longues, de même pour les choix.
 - Les questions doivent toujours être en français, méme si elle parle d'une autre lanngue ou pays.
+- Chaque choix de question doit contenir un choix vraiment débile.
 - Chaque choix de question doit contenir un choix vraiment débile.
 - TOUTES LES QUESTIONS DOIVENT ETRE SUR LE THEME DE '{theme}'.
 - IMPORTANT: Génère EXACTEMENT {self.config["num_questions"]} questions, pas plus, pas moins.

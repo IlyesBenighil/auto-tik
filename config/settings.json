@@ -15,7 +15,7 @@
         "choice_background": "(0, 0, 0, 153)",
         "choice_highlight": "(255, 255, 255, 204)",
         "font": "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-        "background": "back_3_v2.mp4"
+        "background": "camp.mp4"
     },
     "subtitles": {
         "font_size": 70,
@@ -34,10 +34,10 @@
         "use_whisperx": true,
         "word_by_word": true
     },
-    "num_questions": 5,
+    "num_questions": 8,
     "num_choices": 3,
     "size_question": 200,
-    "model": "ministral-8b-latest",
+    "model": "open-mistral-nemo",
     "path_assets": {
         "temp": "temp",
         "backgrounds": "assets/backgrounds/videos",
@@ -45,7 +45,7 @@
         "sound_effects": "assets/sound_effects"
     },
     "music": {
-        "background": "back_10.mp3"
+        "background": "lofi_10.mp3"
     },
     "sound_effects": {
         "tick": "beep_10.wav"
@@ -75,7 +75,7 @@
     ],
     "tts": {
         "language": "fr-FR",
-        "voice": "fr-FR-Studio-A",
+        "voice": "fr-FR-Polyglot-1",
         "gender": "male"
     },
     "storage": {
