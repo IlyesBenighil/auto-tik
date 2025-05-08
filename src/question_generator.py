@@ -171,7 +171,7 @@ class QuestionGenerator:
             return self.generate_question(theme)
         
         return validated_questions 
-
+        
     def generate_prompt_for_image(self, theme: str) -> str:
         """
         Génère un prompt pour l'image en fonction du thème.
@@ -283,3 +283,29 @@ Retourne moi uniquement le json:
         """
         return self.send_request_and_get_answer(prompt_format_json)
             
+    
+    def generate_smart_quiz_v2(self, theme: str) -> str:
+        """
+        Génère un quiz intelligent en fonction du thème.
+        """
+        prompt = f"""
+        Je veux que tu me génére {str(self.num_questions)} question de niveau 6 eme sur la cultre général. 
+        Donne moi les questions et les reponses. 
+        Les reponse doit faire au max 3 mots.
+        """
+        quiz_unformated = self.send_request_and_get_answer(prompt)
+        
+        prompt_format_json = f"""
+        Voici un quiz '{quiz_unformated}'
+        Genere moi le quiz en json en suivant ce format et uniquement se format pas un autre format:
+        {{
+        "questions": [
+        {{
+        "question": "Texte de la question",
+        "answer": "Réponse"
+        }}
+        ]
+        }}
+        Retourne moi uniquement le json:
+        """
+        return json.loads(self._clean_json_string(self.send_request_and_get_answer(prompt_format_json)))

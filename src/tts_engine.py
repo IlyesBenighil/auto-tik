@@ -58,54 +58,69 @@ class TTSEngine:
                 }
             ]
         """
-        try:
-            # Construction du texte complet
-            text_question_and_choices = f"{question_data['question']}\n\n"
-            # for i in range(1, self.config["num_choices"] + 1):
-            #     text_question_and_choices += f"{i} : {question_data['choices'][str(i)]}\n"
-                
-            text_answer = f"\n{question_data['choices'][question_data['answer']]}"
+        # Construction du texte complet
+        text_question_and_choices = f"{question_data['question']}\n\n"
             
-            # Génération de l'audio
-            synthesis_input_question_and_choices = texttospeech.SynthesisInput(text=text_question_and_choices)
-            synthesis_input_answer = texttospeech.SynthesisInput(text=text_answer)
-            synthesis_inputs = [
-                (synthesis_input_question_and_choices, text_question_and_choices, True, False),  # Question
-                (synthesis_input_answer, text_answer, False, True)  # Réponse
-            ]
+        text_answer = f"\n{question_data['choices'][question_data['answer']]}"
+        
+        # Génération de l'audio
+        synthesis_input_question_and_choices = texttospeech.SynthesisInput(text=text_question_and_choices)
+        synthesis_input_answer = texttospeech.SynthesisInput(text=text_answer)
+        synthesis_inputs = [
+            (synthesis_input_question_and_choices, text_question_and_choices, True, False),  # Question
+            (synthesis_input_answer, text_answer, False, True)  # Réponse
+        ]
+        
+        output_info = []
+        for synthesis_input, text, is_question, is_answer in synthesis_inputs:
+            response = self.client.synthesize_speech(
+                input=synthesis_input,
+                voice=self.voice,
+                audio_config=self.audio_config
+            )
             
-            output_info = []
-            for synthesis_input, text, is_question, is_answer in synthesis_inputs:
-                response = self.client.synthesize_speech(
-                    input=synthesis_input,
-                    voice=self.voice,
-                    audio_config=self.audio_config
-                )
-                
-                # Sauvegarde de l'audio
-                audio_path = self.temp_dir / f"tts_{str(time.time()*1000).replace('.', '')}.mp3"
-                with open(audio_path, "wb") as out:
-                    out.write(response.audio_content)
-                
-                # Obtenir la durée de l'audio
-                audio = AudioFileClip(str(audio_path))
-                duration = audio.duration
-                audio.close()
-                
-                output_info.append({
-                    'path': str(audio_path),
-                    'text': text,
-                    'duration': duration,
-                    'is_question': is_question,
-                    'is_answer': is_answer
-                })
+            # Sauvegarde de l'audio
+            audio_path = self.temp_dir / f"tts_{str(time.time()*1000).replace('.', '')}.mp3"
+            with open(audio_path, "wb") as out:
+                out.write(response.audio_content)
             
-            return output_info
+            # Obtenir la durée de l'audio
+            audio = AudioFileClip(str(audio_path))
+            duration = audio.duration
+            audio.close()
             
-        except Exception as e:
-            logger.error(f"Erreur lors de la génération de l'audio: {str(e)}")
-            raise
+            output_info.append({
+                'path': str(audio_path),
+                'text': text,
+                'duration': duration,
+                'is_question': is_question,
+                'is_answer': is_answer
+            })
+        
+        return output_info
+      
+    def generate_question_audio_v2(self, steps: List[Dict]) -> List[Dict]:
+        for step in steps:
+            if step["type"] not in ["question", "answer", "phase"]:
+                continue
+            response = self.client.synthesize_speech(
+                input=texttospeech.SynthesisInput(text=step["text"]),
+                voice=self.voice,
+                audio_config=self.audio_config
+            )
+            # Sauvegarde de l'audio
+            audio_path = self.temp_dir / f"tts_{str(time.time()*1000).replace('.', '')}.mp3"
+            with open(audio_path, "wb") as out:
+                out.write(response.audio_content)
             
+            # Obtenir la durée de l'audio
+            audio = AudioFileClip(str(audio_path))
+            duration = audio.duration
+            audio.close()
+            step["audio_path"] = str(audio_path)
+            step["duration"] = duration
+        return steps
+              
     def cleanup(self):
         """Nettoie les fichiers temporaires"""
         try:

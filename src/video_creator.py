@@ -5,6 +5,7 @@ from pathlib import Path
 import random
 import time
 from PIL import Image, ImageDraw, ImageFont
+from matplotlib import pyplot as plt
 from moviepy import AudioClip, AudioFileClip, ColorClip, CompositeAudioClip, CompositeVideoClip, ImageClip, TextClip, VideoFileClip, VideoClip, concatenate_audioclips, concatenate_videoclips
 from moviepy.video.tools.subtitles import SubtitlesClip
 import numpy as np
@@ -334,11 +335,114 @@ class VideoCreator:
             raise
     
     
-    def create_video_v2(self, workflow: Dict, audio_info: List[Dict]) -> CompositeVideoClip:
-        phases = workflow["phases"]
-        question_data = workflow["question_data"]
-        return None
-      
+    def create_video_v2(self, steps: List, total_duration: float) -> CompositeVideoClip:
+        timings = [(0, 30), (3, 30), (6, 30), (9, 30), (12, 30), (15, 30), (18, 30), (21, 30), (24, 30), (27, 30)]
+        texts = [f"Question {i+1}" for i in range(10)]
+        nb_question = 10
+        padding = 150
+        first_question_y = self.height * 0.15
+
+        static_clips = []
+        dynamic_clips = []
+        audio_clips = []
+
+        # --- Ajouter tous les tirets une fois
+        for i in range(nb_question):
+            y = first_question_y + i * padding
+            dash_clip = TextClip(
+                text="-",
+                font_size=100,
+                font=self.config["video"]["font"],
+                color=self.colors['text'],
+                stroke_color=self.colors['highlight'],
+                stroke_width=2,
+                method="label"
+            ).with_position((20, y)).with_duration(total_duration)
+            static_clips.append(dash_clip)
+
+        # --- Ajouter les textes et audios dynamiquement
+        i = 0
+        for step in steps:
+            if step["type"] == "answer":
+                y = first_question_y + i * padding
+                text_clip = TextClip(
+                    text=step["text"],
+                    font_size=60,
+                    font=self.config["video"]["font"],
+                    color=self.colors['text'],
+                    stroke_color=self.colors['highlight'],
+                    stroke_width=2,
+                    method="label"
+                ).with_position((80, y - 8)).with_start(step["start"]).with_duration(total_duration - step["duration"])
+                dynamic_clips.append(text_clip)
+                i += 1
+
+            elif step["type"] == "timer":
+                timer_clip, timer_audio = self._create_progress_bar_timer_v2(step["duration"])
+                timer_clip = timer_clip.with_start(step["start"])
+                timer_audio = timer_audio.with_start(step["start"])
+                dynamic_clips.append(timer_clip)
+                audio_clips.append(timer_audio)
+
+            if (step["type"] != "timer"):
+                audio_clip = AudioFileClip(step["audio_path"]).with_start(step["start"]).with_duration(step["duration"])
+                audio_clips.append(audio_clip)
+
+        # --- Créer la vidéo finale
+        all_video_clips = static_clips + dynamic_clips
+        video = CompositeVideoClip(all_video_clips, size=(self.width, self.height)).with_duration(total_duration)
+
+        if audio_clips:
+            final_audio = CompositeAudioClip(audio_clips)
+            video = video.with_audio(final_audio)
+
+        # --- Export
+        output_path = str(self.temp_dir / self._get_unique_filename(prefix="final"))
+        video.write_videofile(
+            str(output_path),
+            fps=self.config["video"]["fps"],  # 24 ou + recommandé
+            codec='libx264',
+            audio_codec='aac',
+            preset='ultrafast',
+            threads=16,
+            logger="bar"
+        )
+
+    def create_labeled_text(self, text, dash_fontsize, text_fontsize, y, width, colors, font):
+        # Clip pour le tiret '-'
+        dash_clip = TextClip(
+            text="-",
+            font_size=dash_fontsize,
+            color=colors['text'],
+            font=font,
+            stroke_color="red",
+            stroke_width=2,
+            method='label',
+        ).with_duration(30)
+
+        # Calcul de la largeur restante pour le texte
+        dash_clip_size = dash_clip.size  # (width, height)
+        remaining_width = width - dash_clip_size[0] - 40  # 40px de padding entre le tiret et le texte
+
+        # Clip pour le texte
+        text_clip = TextClip(
+            text=text*5,
+            font_size=text_fontsize,
+            color=colors['text'],
+            font=font,
+            stroke_color="blue",
+            stroke_width=2,
+            method='label',
+        ).with_duration(30)
+
+        # Positionner le texte à droite du tiret
+        text_clip = text_clip.with_position((dash_clip_size[0] + 40, 0))
+
+        # Combinaison du tiret et du texte
+        labeled_clip = CompositeVideoClip([dash_clip, text_clip], size=(width, max(dash_clip.h, text_clip.h)))
+        labeled_clip = labeled_clip.with_position((150, y))  # marge gauche de 20px
+
+        return labeled_clip
     def _create_progress_bar_timer(self, timer_duration: float, question_box: CompositeVideoClip, choices_boxes: List[CompositeVideoClip]) -> CompositeVideoClip:
         # Paramètres du timer circulaire
         circle_radius = 100  # Deux fois plus grand
@@ -742,3 +846,108 @@ class VideoCreator:
         milliseconds = int((seconds_remaining % 1) * 1000)
         seconds = int(seconds_remaining)
         return f"{hours:02d}:{minutes:02d}:{seconds:02d},{milliseconds:03d}" 
+    
+    
+    def _create_progress_bar_timer_v2(self, timer_duration: float) -> CompositeVideoClip:
+        # Paramètres du timer circulaire
+        circle_radius = 100  # Deux fois plus grand
+        circle_thickness = 20  # Épaisseur proportionnelle
+        circle_color = (255, 165, 0, 255)  # Orange
+        circle_bg_color = (40, 44, 52, 180)  # Fond gris foncé semi-transparent
+        text_color = (248, 248, 242, 255)    # Texte blanc
+        
+        frames_per_second = self.config["video"]["fps"]
+        total_frames = int(timer_duration * frames_per_second)
+        
+        
+        # TODO A CHANGER
+        timer_y = self.height * 0.5  # Plus d'espace pour un timer plus grand
+        
+        # Créer les images pour chaque frame
+        frames = []
+        for frame in range(total_frames):
+            # Calculer le temps restant
+            progress = frame / total_frames
+            time_left = int(timer_duration - (frame / frames_per_second)) + 1
+            
+            # Créer une image pour le timer - plus grande
+            img = Image.new("RGBA", (2*circle_radius + 40, 2*circle_radius + 40), (0, 0, 0, 0))
+            draw = ImageDraw.Draw(img)
+            
+            # Dessiner le cercle de fond
+            draw.ellipse(
+                [(20, 20), (20 + 2*circle_radius, 20 + 2*circle_radius)], 
+                outline=circle_bg_color, 
+                width=circle_thickness
+            )
+            
+            # Calculer l'angle pour l'arc de progression (360 degrés = cercle complet)
+            angle = int(360 * (1 - progress))
+            
+            # Dessiner l'arc de progression
+            # L'angle 0 est à droite (Est) et tourne dans le sens anti-horaire
+            draw.arc(
+                [(20, 20), (20 + 2*circle_radius, 20 + 2*circle_radius)],
+                start=270, 
+                end=(270 + angle) % 360,
+                fill=circle_color, 
+                width=circle_thickness
+            )
+            
+            # Ajouter le texte du temps restant
+            try:
+                font = ImageFont.truetype(self.config["video"]["font"], 80)  # Police plus grande
+            except:
+                font = ImageFont.load_default()
+                
+            # Position texte au centre du cercle
+            text_x = circle_radius + 20
+            text_y = circle_radius + 20
+            draw.text(
+                (text_x, text_y), 
+                str(time_left), 
+                fill=text_color, 
+                font=font, 
+                anchor="mm"
+            )
+            
+            # Convertir en array pour moviepy
+            frame_array = np.array(img)
+            frames.append(frame_array)
+        
+        # Créer les clips pour chaque image
+        timer_clips = []
+        for i, frame in enumerate(frames):
+            clip = ImageClip(frame)
+            clip = clip.with_duration(1/frames_per_second)
+            timer_clips.append(clip)
+        
+        # Créer un clip combinant toutes les images du timer
+        if timer_clips:
+            timer_sequence = concatenate_videoclips(timer_clips, method="compose")
+            timer_sequence = timer_sequence.with_duration(timer_duration)
+            
+            # Positionner le timer au centre
+            timer_pos = ("center", timer_y)
+            
+            # Ajouter le son beep_10
+            beep_path = os.path.join(self.config["path_assets"]["sound_effects"] + '/' + self.config["sound_effects"]["tick"])
+            
+            # Vérifier si le fichier audio existe
+            audio_clip = None
+            if os.path.exists(beep_path):
+                beep_audio = AudioFileClip(beep_path)
+                # Si l'audio est plus court que le timer, créer une boucle
+                if beep_audio.duration < timer_duration:
+                    # Calculer combien de fois il faut répéter l'audio
+                    repeats = int(timer_duration / beep_audio.duration) + 1
+                    # Créer une liste d'audio clips à concaténer
+                    beep_clips = [beep_audio] * repeats
+                    # Concaténer et couper à la durée exacte
+                    audio_clip = concatenate_audioclips(beep_clips).subclipped(0, timer_duration)
+                else:
+                    # Sinon, couper l'audio à la durée du timer
+                    audio_clip = beep_audio.subclipped(0, timer_duration)
+                    
+                logger.info(f"Son beep_10 ajouté au timer")
+            return timer_sequence.with_position(timer_pos), audio_clip

@@ -15,7 +15,7 @@
                 "PYTHONPATH": "${workspaceFolder}"
             },
             "cwd": "${workspaceFolder}",
-            "args": ["France"]
+            "args": ["v", "v2"]
         }
     ]
 }

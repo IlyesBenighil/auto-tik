@@ -13,7 +13,7 @@
         "highlight_color": "#000000",
         "choice_correct_background": "(0, 255, 0, 102)",
         "choice_correct_highlight": "(0, 255, 0, 255)",
-        "choice_background": "(0, 0, 0, 153)",
+        "choice_background": "(150, 0, 0, 153)",
         "choice_highlight": "(255, 255, 255, 204)",
         "font": "usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
         "background": ""
@@ -39,13 +39,13 @@
     "prompt": {
         "path": "src/prompts/quiz_prompt.txt",
         "difficulty": "difficile",
-        "num_questions": 8,
+        "num_questions": 10,
         "num_choices": 3
     },
     "size_question": 200,
     "model": {
         "type": "mistral",
-        "name": "mistral-large-latest"
+        "name": "open-mistral-nemo"
     },
     "path_assets": {
         "temp": "temp",
