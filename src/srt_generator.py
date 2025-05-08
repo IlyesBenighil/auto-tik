@@ -6,10 +6,65 @@ import whisperx
 import torch
 import sys
 import re
+import unicodedata
 from pathlib import Path
 from moviepy import AudioFileClip, concatenate_audioclips
+from fugashi import Tagger
 
 logger = logging.getLogger(__name__)
+
+# Initialiser le tagger Fugashi pour le japonais
+japanese_tagger = None
+
+def get_japanese_tagger():
+    """
+    Initialise le tagger japonais à la demande pour éviter de charger le modèle
+    si la langue japonaise n'est pas utilisée.
+    """
+    global japanese_tagger
+    if japanese_tagger is None:
+        try:
+            # Vérifier d'abord si unidic est correctement installé
+            import unidic
+            dicdir = unidic.DICDIR
+            if not os.path.exists(dicdir):
+                logger.warning(f"Le dictionnaire unidic n'est pas trouvé à {dicdir}")
+                logger.info("Téléchargement du dictionnaire unidic...")
+                import subprocess
+                subprocess.run([sys.executable, "-m", "unidic", "download"], check=True)
+            
+            # Importer Fugashi après s'être assuré que unidic est correctement installé
+            from fugashi import Tagger
+            japanese_tagger = Tagger()
+            logger.info("Tagger japonais initialisé avec succès")
+        except Exception as e:
+            logger.error(f"Erreur lors de l'initialisation du tagger japonais: {str(e)}")
+            logger.info("Utilisation de la méthode alternative pour le découpage des mots japonais")
+            japanese_tagger = None
+    return japanese_tagger
+
+def tokenize_japanese(text):
+    """
+    Découpe un texte japonais en mots en utilisant Fugashi.
+    """
+    tagger = get_japanese_tagger()
+    if tagger is None:
+        # Méthode alternative si Fugashi n'est pas disponible
+        pattern = r'[\p{Han}\p{Hiragana}\p{Katakana}]+|[a-zA-Z0-9]+|[.,!?;]'
+        words = re.findall(pattern, text, re.UNICODE)
+        return [word for word in words if word.strip()]
+    
+    try:
+        tokens = []
+        for word in tagger(text):
+            tokens.append(word.surface)
+        return tokens
+    except Exception as e:
+        logger.error(f"Erreur lors de la tokenisation japonaise: {str(e)}")
+        # Fallback en cas d'erreur
+        pattern = r'[\p{Han}\p{Hiragana}\p{Katakana}]+|[a-zA-Z0-9]+|[.,!?;]'
+        words = re.findall(pattern, text, re.UNICODE)
+        return [word for word in words if word.strip()]
 
 class SRTGenerator:
     def __init__(self, config: dict):
@@ -79,7 +134,11 @@ class SRTGenerator:
                 
                 # Diviser le texte en mots
                 if word_by_word:
-                    words = self._split_text_into_words(info['text'])
+                    language = self.config["subtitles"].get("language", "fr")
+                    if language == "ja":
+                        words = tokenize_japanese(info['text'])
+                    else:
+                        words = self._split_text_into_words(info['text'])
                 else:
                     # Si word_by_word est désactivé, traiter le texte entier comme un seul segment
                     words = [info['text']]
@@ -301,6 +360,18 @@ class SRTGenerator:
         # On conserve la ponctuation avec le mot précédent
         words = re.findall(r'\w+(?:[.,!?;])?|\S', text)
         return [word for word in words if word.strip()]
+    
+    def _split_japanese_text_into_words(self, text: str) -> list:
+        """
+        Divise un texte japonais en mots en utilisant Fugashi pour une analyse morphologique précise.
+        
+        Args:
+            text (str): Texte japonais à diviser
+            
+        Returns:
+            list: Liste des mots japonais
+        """
+        return tokenize_japanese(text)
             
     def _format_time(self, seconds: float) -> str:
         """
@@ -400,7 +471,12 @@ def transcribe_with_timestamps(audio_file, output_file, model_size="medium", lan
         
         # Générer le fichier SRT
         print("Génération du fichier SRT...")
-        generate_srt_from_words(aligned["word_segments"], output_file)
+        phrase = result['segments'][0]['text']
+        # Pour le japonais, grouper les caractères en mots complets
+        if language == "ja":
+            generate_japanese_srt_from_words(aligned["word_segments"], output_file, phrase)
+        else:
+            generate_srt_from_words(aligned["word_segments"], output_file)
         
         print(f"Transcription terminée! Fichier SRT créé: {output_file}")
         print(f"Nombre total de mots: {len(aligned['word_segments'])}")
@@ -419,7 +495,10 @@ def transcribe_with_timestamps(audio_file, output_file, model_size="medium", lan
             aligned = whisperx.align(result["segments"], model_a, metadata, audio, device=device)
             
             print("Génération du fichier SRT...")
-            generate_srt_from_words(aligned["word_segments"], output_file)
+            if language == "ja":
+                generate_japanese_srt_from_words(aligned["word_segments"], output_file)
+            else:
+                generate_srt_from_words(aligned["word_segments"], output_file)
             
             print(f"Transcription terminée! Fichier SRT créé: {output_file}")
             print(f"Nombre total de mots: {len(aligned['word_segments'])}")
@@ -456,6 +535,84 @@ def generate_srt_from_words(word_segments, output_file):
             srt_file.write(f"{start_formatted} --> {end_formatted}\n")
             srt_file.write(f"{word}\n\n")
 
+def generate_japanese_srt_from_words(word_segments, output_file, phrase):
+    """
+    Génère un fichier SRT à partir des segments de mots japonais de WhisperX,
+    en regroupant les caractères japonais individuels en mots complets en utilisant Fugashi.
+    """
+    # Regrouper les segments par leur temps de début et fin
+    time_grouped_segments = {}
+    current_time = 0.0
+    n_jp_word_index = 0
+    n_jp_word_index = 0
+    phrase_jp_tokens = tokenize_japanese(phrase)
+    final_segments = []
+    imcomplete_word = {
+        "word": '',
+        "start": 0.0,
+        "end": 0.0,
+        "incomplete_word": False,
+    }
+    for segment in word_segments:
+
+        jp_char = segment["word"].strip()
+        start_time = segment["start"]
+        end_time = segment["end"]
+        right_jp_word = phrase_jp_tokens[n_jp_word_index]
+        
+        if (imcomplete_word["incomplete_word"]):
+            jp_char = imcomplete_word["word"] + jp_char
+        
+        # Calculer si c'est un mot
+        if jp_char == right_jp_word:
+            if (imcomplete_word["incomplete_word"]):
+                word = {
+                    "word": jp_char,
+                    "start": imcomplete_word["start"], 
+                    "end": end_time
+                }
+                n_jp_word_index = n_jp_word_index + 1
+                final_segments.append(word)
+                imcomplete_word = {
+                    "word": '',
+                    "start": 0.0,
+                    "end": 0.0,
+                    "incomplete_word": False,
+                }
+                continue
+            word = {
+                "word": jp_char,
+                "start": start_time,
+                "end": end_time,
+            }
+            n_jp_word_index = n_jp_word_index + 1
+            final_segments.append(word)
+            continue
+        imcomplete_word = {
+            "word": jp_char,
+            "start": start_time if (imcomplete_word["start"] == 0.0) else imcomplete_word["start"],
+            "end": end_time if (imcomplete_word["end"] == 0.0) else imcomplete_word["end"],
+            "incomplete_word": True,
+        }
+            
+    
+    # Écrire le fichier SRT avec les segments correctement regroupés
+    with open(output_file, "w", encoding="utf-8") as srt_file:
+        for i, segment in enumerate(final_segments, 1):
+            word = segment["word"]
+            start_time = segment["start"]
+            end_time = segment["end"]
+            
+            # Écrire le segment SRT
+            srt_file.write(f"{i}\n")
+            start_formatted = format_time(start_time)
+            end_formatted = format_time(end_time)
+            srt_file.write(f"{start_formatted} --> {end_formatted}\n")
+            srt_file.write(f"{word}\n\n")
+    
+    print(f"Sous-titres japonais générés: {len(final_segments)} segments (à partir de {len(word_segments)} segments originaux)")
+    print(f"Utilisation de Fugashi: {'Oui' if get_japanese_tagger() is not None else 'Non'}")
+
 def format_time(seconds):
     """
     Convertit les secondes en format SRT: HH:MM:SS,mmm
@@ -485,4 +642,4 @@ def main():
     transcribe_with_timestamps(args.audio_file, args.output, args.model, args.language, args.device)
 
 if __name__ == "__main__":
-    main()  
+    main() 

@@ -13,3 +13,5 @@ if __name__ == "__main__":
     result = tokenize_japanese(phrase)
     print("Découpage en mots et particules :")
     print(result)
+
+

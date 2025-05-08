@@ -1,0 +1,5 @@
+I’m going to give you an image generation prompt—complete it so that it fits the theme of {theme}.
+Your task is to retun a prompt.
+It should be at least 4 sentences.
+Respond me ONLY THE PROMPT.
+A hand-drawn illustration of the theme illustrated style, cozy, cottagecore, flat perspective.

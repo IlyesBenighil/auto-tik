@@ -54,7 +54,7 @@ class VideoCreator:
         # Gestionnaire de fonds vidéo
         try:
             from src.background_manager import BackgroundManager
-            self.background_manager = BackgroundManager()
+            self.background_manager = BackgroundManager(config=self.config)
             logger.info("BackgroundManager initialisé avec succès")
         except Exception as e:
             logger.error(f"Erreur lors de l'initialisation du BackgroundManager: {str(e)}")
@@ -94,7 +94,7 @@ class VideoCreator:
             choices_clips (List[TextClip]): Liste des clips des choix
         """
         # Position de la question en haut
-        question_y = self.height * 0.1
+        question_y = self.height * 0.15
         question_clip_with_position = question_clip.with_position(('center', question_y))
         
         # Espacement entre les options
@@ -119,6 +119,26 @@ class VideoCreator:
             
         return question_clip_with_position, choices_clips_with_position
 
+    def _wrap_japanese_text(self, text, max_chars=9):
+        from fugashi import Tagger
+        tagger = Tagger()
+        tokens = [word.surface for word in tagger(text)]
+       
+        lines = []
+        current_line = ''
+       
+        for token in tokens:
+            if len(current_line) + len(token) > max_chars:
+               lines.append(current_line)
+               current_line = token
+            else:
+               current_line += token
+       
+        if current_line:
+            lines.append(current_line)
+       
+        return '\n'.join(lines)
+    
     def _create_text_box(self, text: str, fontsize: int, color: str, is_correct: bool = False) -> CompositeVideoClip:
         """
         Crée une boîte design contenant du texte.
@@ -132,67 +152,66 @@ class VideoCreator:
         Returns:
             CompositeVideoClip: La boîte avec le texte
         """
-        try:
-            # Création du texte avec une police système standard
-            text_clip = TextClip(
-                text=text,
-                font_size=fontsize,
-                color=color,
-                size=(int(self.width * 0.8), None),
-                method='caption',
-                stroke_color=self.colors['highlight'],
-                stroke_width=2,
-                font=self.config["video"]["font"]
-            )
+        method = 'caption'
+        if self.config["subtitles"]["language"] == "ja":
+            text = self._wrap_japanese_text(text)
+            method = 'label'
+        # Création du texte avec une police système standard
+        text_clip = TextClip(
+            text=text,
+            font_size=fontsize,
+            color=color,
+            size=(int(self.width * 0.8), None),
+            method=method,
+            stroke_color=self.colors['highlight'],
+            stroke_width=2,
+            font=self.config["video"]["font"]
+        )
             
-            # Dimensions de la boîte avec padding
-            padding = 30
-            box_width = text_clip.size[0] + padding * 2
-            box_height = text_clip.size[1] + padding * 2
-            
-            # Création d'une image PIL pour la boîte
-            box_image = Image.new('RGBA', (box_width, box_height), (0, 0, 0, 0))
-            draw = ImageDraw.Draw(box_image)
-            
-            # Couleurs de la boîte
-            if is_correct:
-                fill_color = self.colors['choice_correct_background']
-                border_color = self.colors['choice_correct_highlight']
-            else:
-                fill_color = self.colors['choice_background']
-                border_color = self.colors['choice_highlight']
-            
-            # Dessin du fond
-            draw.rectangle(
-                [(0, 0), (box_width, box_height)],
-                fill=fill_color
-            )
-            
-            # Dessin de la bordure
-            border_width = 4
-            draw.rectangle(
-                [(0, 0), (box_width, box_height)],
-                outline=border_color,
-                width=border_width
-            )
-            
-            # Création du clip à partir de l'image PIL
-            box_clip = ImageClip(np.array(box_image))
-            
-            # Positionnement du texte au centre de la boîte
-            text_clip = text_clip.with_position(('center', 'center'))
-            
-            # Assemblage de la boîte
-            final_clip = CompositeVideoClip([
-                box_clip,
-                text_clip
-            ], size=(box_width, box_height))
-            
-            return final_clip
-            
-        except Exception as e:
-            logger.error(f"Erreur lors de la création de la boîte: {str(e)}")
-            raise
+        # Dimensions de la boîte avec padding
+        padding = 30
+        box_width = text_clip.size[0] + padding * 2
+        box_height = text_clip.size[1] + padding * 2
+        
+        # Création d'une image PIL pour la boîte
+        box_image = Image.new('RGBA', (box_width, box_height), (0, 0, 0, 0))
+        draw = ImageDraw.Draw(box_image)
+        
+        # Couleurs de la boîte
+        if is_correct:
+            fill_color = self.colors['choice_correct_background']
+            border_color = self.colors['choice_correct_highlight']
+        else:
+            fill_color = self.colors['choice_background']
+            border_color = self.colors['choice_highlight']
+        
+        # Dessin du fond
+        draw.rectangle(
+            [(0, 0), (box_width, box_height)],
+            fill=fill_color
+        )
+        
+        # Dessin de la bordure
+        border_width = 4
+        draw.rectangle(
+            [(0, 0), (box_width, box_height)],
+            outline=border_color,
+            width=border_width
+        )
+        
+        # Création du clip à partir de l'image PIL
+        box_clip = ImageClip(np.array(box_image))
+        
+        # Positionnement du texte au centre de la boîte
+        text_clip = text_clip.with_position(('center', 'center'))
+        
+        # Assemblage de la boîte
+        final_clip = CompositeVideoClip([
+            box_clip,
+            text_clip
+        ], size=(box_width, box_height))
+        
+        return final_clip
 
     def create_video(self, question_data: Dict, audio_info: List[Dict]) -> CompositeVideoClip:
         """
@@ -313,7 +332,13 @@ class VideoCreator:
         except Exception as e:
             logger.error(f"Erreur lors de la création de la vidéo: {str(e)}")
             raise
-            
+    
+    
+    def create_video_v2(self, workflow: Dict, audio_info: List[Dict]) -> CompositeVideoClip:
+        phases = workflow["phases"]
+        question_data = workflow["question_data"]
+        return None
+      
     def _create_progress_bar_timer(self, timer_duration: float, question_box: CompositeVideoClip, choices_boxes: List[CompositeVideoClip]) -> CompositeVideoClip:
         # Paramètres du timer circulaire
         circle_radius = 100  # Deux fois plus grand

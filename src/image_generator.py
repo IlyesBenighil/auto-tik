@@ -5,18 +5,19 @@ from google import genai
 from google.genai import types
 from PIL import Image
 
+from src.question_generator import QuestionGenerator
+
 class ImageGenerator:
-    def __init__(self):
+    def __init__(self, config: dict):
         # Chargement des variables d'environnement
         load_dotenv(override=True)
         self.client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
         self.output_dir = "assets/backgrounds/images"
-        
+        self.config = config
     def generete_and_save_image(self, theme: str):
-        prompt = f"""
-        'Generate an image of an '{theme}' scene with a calm, dimly-lit yet colorful and mystical atmosphere. The environment should feel serene and enchanting, with soft glows, magical lights, and vibrant but harmonious colors. Think misty air with colorful highlights, glowing symbols, and dreamy lighting. The style should be fantasy-cinematic or surreal-realistic, combining mystery and vivid beauty.',
-        """
-
+        
+        prompt = QuestionGenerator(config=self.config).generate_prompt_for_image(theme)
+        print('image prompt: ' + prompt)
         response = self.client.models.generate_images(
             model='imagen-3.0-generate-002',
             prompt=prompt,

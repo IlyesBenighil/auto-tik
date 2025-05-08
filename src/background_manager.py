@@ -4,12 +4,13 @@ from src.video_generator import VideoGenerator
 
 
 class BackgroundManager:
-    def __init__(self):
+    def __init__(self, config: dict):
         """
         Initialise le gestionnaire de fonds vidéo.
         """
         self.videos_dir = Path("assets/backgrounds/videos")
         self.videos_dir.mkdir(parents=True, exist_ok=True)
+        self.config = config
     
     def get_background(self, theme: str) -> str:
         """
@@ -24,5 +25,5 @@ class BackgroundManager:
         if video_path.exists():
             return str(video_path)
         video_generator = VideoGenerator(theme)
-        img_generated_path = ImageGenerator().generete_and_save_image(theme)
+        img_generated_path = ImageGenerator(config=self.config).generete_and_save_image(theme)
         return video_generator.generate_video_from_image(img_generated_path)

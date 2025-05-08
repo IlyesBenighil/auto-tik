@@ -23,18 +23,17 @@ class QuestionGenerator:
 
         
         # Chargement du prompt depuis le fichier si configuré
-        self.prompt_template_unformated = self._load_prompt_template()
+        self.prompt_template_unformated = self._load_prompt_template(self.config["prompt"]["path"])
+        self.prompt_image_template_unformated = self._load_prompt_template('src/prompts/image_prompts.txt')
         
-    def _load_prompt_template(self) -> str:
+    def _load_prompt_template(self, path) -> str:
         """
         Charge le template du prompt depuis le fichier.
         
         Returns:
             str: Le contenu du fichier de prompt
         """
-        prompt_path = Path(self.config["prompt"]["path"])
-        if not prompt_path.exists():
-            raise FileNotFoundError(f"Le fichier de prompt n'existe pas: {prompt_path}")
+        prompt_path = Path(path)
             
         with open(prompt_path, 'r', encoding='utf-8') as f:
             return f.read()
@@ -66,6 +65,13 @@ class QuestionGenerator:
         for var_name, var_value in replacements.items():
             prompt = prompt.replace(f"{{{var_name}}}", var_value)
 
+        return prompt
+    def _format_prompt_for_image(self, theme: str) -> str:
+        """
+        Formate le prompt pour l'image en fonction du thème.
+        """
+        prompt = self.prompt_image_template_unformated
+        prompt = prompt.replace("{theme}", theme)
         return prompt
         
     def _clean_json_string(self, text: str) -> str:
@@ -129,12 +135,12 @@ class QuestionGenerator:
         return json_str
         
     def generate_question(self, theme: str) -> List[Dict[str, Any]]:
-        # Utiliser le prompt formaté avec les variables
-        prompt = self._format_prompt(theme)
+        # # Utiliser le prompt formaté avec les variables
+        # prompt = self._format_prompt(theme)
         
-        # Récupération de la réponse (nouvelle structure)
-        response_text = self.send_request_and_get_answer(prompt)
-        
+        # # Récupération de la réponse (nouvelle structure)
+        # response_text = self.send_request_and_get_answer(prompt)
+        response_text = self.generate_smart_quiz(theme=theme)
         # Nettoyage et parsing du JSON
         json_str = self._clean_json_string(response_text)
         # Parse du JSON
@@ -165,6 +171,13 @@ class QuestionGenerator:
             return self.generate_question(theme)
         
         return validated_questions 
+
+    def generate_prompt_for_image(self, theme: str) -> str:
+        """
+        Génère un prompt pour l'image en fonction du thème.
+        """
+        prompt = self._format_prompt_for_image(theme)
+        return self.send_request_and_get_answer(prompt)
 
     def validate_question(self, question_data: Dict) -> bool:
         """
@@ -239,4 +252,34 @@ class QuestionGenerator:
                 contents=prompt
             )
             return response.text
+        
+    def generate_smart_quiz(self, theme: str) -> str:
+        """
+        Génère un quiz intelligent en fonction du thème.
+        """
+        
+        prompt = f"""Crée un QCM de {str(self.num_questions)} questions sur le theme '{theme}'. 
+        Les questions doivent être courtes, les réponses de moins de 3 mots, avec 3 choix par question.
+        Quand le choix est un nom commun indique met aussi le déterminant.
+        Indique la réponse sous chaque choix.
+        """
+        no_json_quiz = self.send_request_and_get_answer(prompt)
+        prompt_format_json = f""" Voici un quiz '{no_json_quiz}'
+        Genere moi le quiz en json en suivant ce format:
+        {{
+  "questions": [
+    {{
+      "question": "Texte de la question",
+      "choices": {{
+        "1": "Choix 1",
+        "2": "Choix 2",
+        "3": "Choix 3"
+      }},
+      "answer": "3"
+    }}
+  ]
+}}
+Retourne moi uniquement le json:
+        """
+        return self.send_request_and_get_answer(prompt_format_json)
             

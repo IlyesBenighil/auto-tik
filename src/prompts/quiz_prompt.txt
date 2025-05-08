@@ -2,7 +2,16 @@ Génère un quiz très {difficulty} au format JSON sur le thème {theme}, compos
 Contraintes :
 1. Chaque question doit avoir {num_choices} choix de réponse.
 2. La question ne doit pas faire plus de 13 mots.
-3. Les choix ne doivent faire moins de 10 mots.
+3. Les choix ne doivent faire moins de 3 mots.
+3. Les choix ne doivent faire moins de 3 mots.
+3. Les choix ne doivent faire moins de 3 mots.
+3. Les choix ne doivent faire moins de 3 mots.
+3. Les choix ne doivent faire moins de 3 mots.
+3. Les choix ne doivent faire moins de 3 mots.
+3. Les choix ne doivent faire moins de 3 mots.
+3. Les choix ne doivent faire moins de 3 mots.
+3. Les choix ne doivent faire moins de 3 mots.
+3. Les choix ne doivent faire moins de 3 mots.
 4. Une seule réponse est correcte.
 5. La bonne réponse ne doit pas toujours être à le même position index.
 6. Le format doit être strictement le suivant :

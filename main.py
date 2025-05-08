@@ -48,7 +48,7 @@ class VideoGenerator:
         self.video_creator = VideoCreator(theme=self.theme, config=self.config)
         self.storage_manager = StorageManager(config=self.config)
         self.srt_generator = SRTGenerator(config=self.config)
-        self.background_manager = BackgroundManager()
+        self.background_manager = BackgroundManager(config=self.config)
 
     def _load_config(self):
         """Charge la configuration depuis le fichier settings.json"""
