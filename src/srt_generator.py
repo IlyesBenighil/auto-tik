@@ -437,6 +437,63 @@ class SRTGenerator:
         # Format: HH:MM:SS,mmm
         hours, minutes, seconds = time_str.replace(',', '.').split(':')
         return int(hours) * 3600 + int(minutes) * 60 + float(seconds)
+    
+    def transcribe_with_timestamps_v2(self, steps: list[dict]) -> str:
+        # Paramètres de configuration
+        model_size = self.config["subtitles"]["model_size"]
+        language = self.config["subtitles"]["language"]
+        device = "cpu"
+        
+        # Générer le nom du fichier SRT
+        srt_path = str(self.temp_dir / "subtitles.srt")
+        
+        # Liste des objets srt (total) avec le bon timing.
+        all_srt_object_list = []
+        i = 0
+        global_offset = 0.0 
+        # Boucle principale
+        for i in range(0, len(steps)):
+            current_step = steps[i]
+            
+            if current_step["type"] == "timer":
+                global_offset += current_step["duration"]
+                continue
+            
+            temp_srt = str(self.temp_dir / f"temp_subtitles_{i}.srt")
+            logger.info(f"Transcription du segment {i+1}/{len(steps)}...")
+            transcribe_with_timestamps(
+                audio_file=current_step["audio_path"],
+                output_file=temp_srt,
+                model_size=model_size,
+                language=language,
+                device=device
+            )
+            
+            # Charger les sous-titres générés
+            with open(temp_srt, 'r', encoding='utf-8') as f:
+                srt_content = f.read()
+            srt_object_list = self._parse_srt_file(srt_content)
+            for srt_object in srt_object_list:
+                srt_object["start"] += global_offset
+                srt_object["end"] += global_offset
+                all_srt_object_list.append(srt_object)
+            global_offset += current_step["duration"]
+
+        # Ecrire dans le fichier srt global
+        with open(srt_path, "w", encoding="utf-8") as srt_file:
+            for j, all_srt_object in enumerate(all_srt_object_list, 1):
+                # Écrire le numéro du sous-titre
+                srt_file.write(f"{j}\n")
+                # Écrire les timings
+                start_formatted = self._format_time(all_srt_object['start'])
+                end_formatted = self._format_time(all_srt_object['end'])
+                srt_file.write(f"{start_formatted} --> {end_formatted}\n")
+                # Écrire le texte
+                srt_file.write(f"{all_srt_object['text']}\n\n")
+        logger.info(f"Fichier SRT créé avec {len(all_srt_object_list)} sous-titre: {srt_path}")
+            
+        return srt_path
+
 
 def transcribe_with_timestamps(audio_file, output_file, model_size="medium", language="fr", device="cpu"):
     """

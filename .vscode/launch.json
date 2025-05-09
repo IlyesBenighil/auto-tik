@@ -15,7 +15,7 @@
                 "PYTHONPATH": "${workspaceFolder}"
             },
             "cwd": "${workspaceFolder}",
-            "args": ["v", "v2"]
+            "args": ["--theme", "Le Japon", "-v", "v2"]
         }
     ]
 }

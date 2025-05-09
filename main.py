@@ -41,8 +41,8 @@ class VideoGenerator:
             config=self.config
             )
         parser = argparse.ArgumentParser(description="Génération de vidéo")
-        parser.add_argument("theme", nargs="?", help="Thème de la vidéo", default="None")
-        parser.add_argument("v", nargs="?", help="version", default="v1")
+        parser.add_argument("-t", '--theme',dest='theme', nargs="?", help="Thème de la vidéo", default="None")
+        parser.add_argument("-v", "--version", dest="v", help="Version à utiliser (v1 ou v2)", default="v1")
 
         args = parser.parse_args()
         self.args = args
@@ -172,17 +172,24 @@ class VideoGenerator:
         # Génération des questions
         questions = self.question_generator.generate_smart_quiz_v2(self.theme)
         # Génération des tts
-        intro_text = "Es tu plus intelligent qu'un élève de 6eme ? On commence facile !"
-        phase_1_text = "Si tu as ton bon like et partage la video !"
+        #intro_text = "Es tu plus intelligent qu'un élève de 6eme ? On commence facile !"
+        intro_text = f"Seul 1'%' des personnes arrivent à avoir 10 sur 10 à ce quiz !"
+        phase_1_text = "Si tu as tout bon like et partage la video !"
         phase_2_text = "Ok on vas augmenter la difficulté ! Oublie pas de partager ton score"
-        phase_3_text = "Si tu as 10/10 bravo! Commente ton score et dit moi sur quelle thème tu veux un quiz !"
+        phase_3_text = "Si tu as 10 sur 10 bravo! Commente ton score et dit moi sur quelle thème tu veux un quiz !"
         steps = [{
             "type": "phase",
             "text": intro_text,
         }]
         # TODO un jour generaliser
         i = 0
-        for question in questions["questions"]:
+        questions_list = []
+        if isinstance(questions, list):
+            questions_list = questions
+        else:
+            questions_list = questions["questions"]
+        
+        for question in questions_list:
             steps.append({
                 "type": "question",
                 "text": question["question"],
@@ -219,8 +226,14 @@ class VideoGenerator:
         steps, total_duration = self.calculate_duration_start_end(steps)
         print(steps)
         print(total_duration)
+        
+        # Création des du fichier de sous titre
+        srt_file = self.srt_generator.transcribe_with_timestamps_v2(steps)
+        print(srt_file)
         # Création de la vidéo
         self.video_creator.create_video_v2(steps, total_duration)
+        
+        
         exit()
 def main():
     generator = VideoGenerator()

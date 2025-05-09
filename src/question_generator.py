@@ -1,5 +1,6 @@
 import os
 import json
+import random
 import re
 import logging
 from pathlib import Path
@@ -74,38 +75,29 @@ class QuestionGenerator:
         prompt = prompt.replace("{theme}", theme)
         return prompt
         
-    def _clean_json_string(self, text: str) -> str:
+    def _clean_json_string(self, text: str):
         """Nettoie une chaîne de caractères pour extraire un JSON valide."""
         print("\nTexte original:")
         print(text)
         
         # Supprime les espaces et sauts de ligne au début et à la fin
-        text = text.strip()
-        
-        # Trouve le premier { et le premier } qui suit
-        start_idx = text.find("{")
-        if start_idx == -1:
-            raise ValueError("Aucun JSON trouvé dans la réponse")
+        json_str = text
             
         # Compte les accolades pour trouver la fin du premier objet JSON
-        count = 0
-        end_idx = start_idx
-        for i in range(start_idx, len(text)):
-            if text[i] == '{':
-                count += 1
-            elif text[i] == '}':
-                count -= 1
-                if count == 0:
-                    end_idx = i
-                    break
+        # count = 0
+        # end_idx = start_idx
+        # for i in range(start_idx, len(text)):
+        #     if text[i] == '{':
+        #         count += 1
+        #     elif text[i] == '}':
+        #         count -= 1
+        #         if count == 0:
+        #             end_idx = i
+        #             break
         
-        if end_idx == start_idx:
-            raise ValueError("Format JSON invalide")
+        # if end_idx == start_idx:
+        #     raise ValueError("Format JSON invalide")
             
-        # Extrait le premier objet JSON
-        json_str = text[start_idx:end_idx + 1]
-        print("\nPremier JSON extrait:")
-        print(json_str)
         
         # Supprime tout HTML et texte après le JSON
         json_str = re.sub(r'</?[^>]+>', '', json_str)
@@ -129,10 +121,13 @@ class QuestionGenerator:
         json_str = re.sub(r'"\s+', '"', json_str)
         json_str = re.sub(r'\s+"', '"', json_str)
         
+        json_str = json_str.replace('```', '')
+        json_str = json_str.replace('json', '')
+
         print("\nJSON nettoyé:")
         print(json_str)
         
-        return json_str
+        return json.loads(json_str)
         
     def generate_question(self, theme: str) -> List[Dict[str, Any]]:
         # # Utiliser le prompt formaté avec les variables
@@ -142,9 +137,8 @@ class QuestionGenerator:
         # response_text = self.send_request_and_get_answer(prompt)
         response_text = self.generate_smart_quiz(theme=theme)
         # Nettoyage et parsing du JSON
-        json_str = self._clean_json_string(response_text)
-        # Parse du JSON
-        question_data = json.loads(json_str)
+        question_data = self._clean_json_string(response_text)
+
         # Validation de la structure
         if "questions" not in question_data or not isinstance(question_data["questions"], list):
             raise ValueError("Format de réponse invalide: 'questions' doit être une liste")
@@ -288,6 +282,12 @@ Retourne moi uniquement le json:
         """
         Génère un quiz intelligent en fonction du thème.
         """
+        
+        if (self.config["questions"]["json"] != ''):
+            with open(self.config["questions"]["json"], 'r') as f:
+                json_quiz = json.load(f)["questions"]
+            selected_questions = random.sample(json_quiz, self.num_questions)
+            return selected_questions
         prompt = f"""
         Je veux que tu me génére {str(self.num_questions)} question de niveau 6 eme sur la cultre général. 
         Donne moi les questions et les reponses. 
@@ -308,4 +308,4 @@ Retourne moi uniquement le json:
         }}
         Retourne moi uniquement le json:
         """
-        return json.loads(self._clean_json_string(self.send_request_and_get_answer(prompt_format_json)))
+        return self._clean_json_string(self.send_request_and_get_answer(prompt_format_json))

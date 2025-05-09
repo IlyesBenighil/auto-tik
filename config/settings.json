@@ -16,7 +16,10 @@
         "choice_background": "(150, 0, 0, 153)",
         "choice_highlight": "(255, 255, 255, 204)",
         "font": "usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-        "background": ""
+        "background": "cloudv2.mp4"
+    },
+    "questions": {
+        "json": "questions.json"
     },
     "subtitles": {
         "font_size": 70,
@@ -45,7 +48,7 @@
     "size_question": 200,
     "model": {
         "type": "mistral",
-        "name": "open-mistral-nemo"
+        "name": "mistral-large-2411"
     },
     "path_assets": {
         "temp": "temp",
@@ -54,7 +57,7 @@
         "sound_effects": "assets/sound_effects"
     },
     "music": {
-        "background": "lofi_10.mp3"
+        "background": "epic_10.mp3"
     },
     "sound_effects": {
         "tick": "beep_10.wav"
@@ -84,7 +87,7 @@
     ],
     "tts": {
         "language": "fr-FR",
-        "voice": "fr-FR-Chirp3-HD-Leda",
+        "voice": "fr-FR-Chirp3-HD-Umbriel",
         "gender": "male"
     },
     "storage": {

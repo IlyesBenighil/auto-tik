@@ -336,44 +336,88 @@ class VideoCreator:
     
     
     def create_video_v2(self, steps: List, total_duration: float) -> CompositeVideoClip:
-        timings = [(0, 30), (3, 30), (6, 30), (9, 30), (12, 30), (15, 30), (18, 30), (21, 30), (24, 30), (27, 30)]
-        texts = [f"Question {i+1}" for i in range(10)]
-        nb_question = 10
-        padding = 150
-        first_question_y = self.height * 0.15
+        nb_question = self.config["prompt"]["num_questions"]
+        padding = 100
+        first_question_y = self.height * 0.27
 
         static_clips = []
         dynamic_clips = []
         audio_clips = []
-
+        # Création d'un TextClip avec fond rouge
+        text_clip = TextClip(
+            text=f"Quiz Culture générale",
+            font_size=60,
+            font=self.config["video"]["font"],
+            color="white",
+            stroke_color="black", 
+            stroke_width=2,
+            method="label"
+        )
+        
+        # Dimensions du texte avec padding
+        padding_x = 20
+        padding_y = 10
+        text_w, text_h = text_clip.size
+        bg_w = text_w + 2*padding_x
+        bg_h = text_h + 2*padding_y
+        
+        # Rayon des coins arrondis
+        corner_radius = 15
+        
+        # Création du fond avec coins arrondis
+        bg_img, mask_img = self._make_background((bg_w, bg_h), (220, 20, 20), corner_radius)
+        
+        # Création d'un clip de couleur pour le fond
+        bg_clip = ColorClip(size=(bg_w, bg_h), color=(220, 20, 20))
+        
+        # Création d'un clip image pour le masque
+        mask_clip = ImageClip(mask_img, is_mask=True)
+        
+        # Application du masque au fond
+        bg_clip = bg_clip.with_mask(mask_clip)
+        
+        # Positionnement du texte au centre du fond
+        text_clip = text_clip.with_position(('center', 'center'))
+        
+        # Composition du texte et du fond
+        final_text = CompositeVideoClip(
+            [bg_clip, text_clip],
+            size=(bg_w, bg_h)
+        ).with_position(('center', 150)).with_duration(total_duration)
+        
+        # Ajout aux clips statiques
+        static_clips.append(final_text)
         # --- Ajouter tous les tirets une fois
         for i in range(nb_question):
             y = first_question_y + i * padding
             dash_clip = TextClip(
-                text="-",
-                font_size=100,
+                text=f"{str(i+1)})",
+                font_size=60,
                 font=self.config["video"]["font"],
                 color=self.colors['text'],
                 stroke_color=self.colors['highlight'],
-                stroke_width=2,
+                stroke_width=5,
                 method="label"
-            ).with_position((20, y)).with_duration(total_duration)
+            ).with_position((130, y)).with_duration(total_duration)
             static_clips.append(dash_clip)
 
         # --- Ajouter les textes et audios dynamiquement
         i = 0
         for step in steps:
             if step["type"] == "answer":
-                y = first_question_y + i * padding
+                y = first_question_y + i * padding + 2
+                x = 210
+                if i >= 9:
+                    x+= 15
                 text_clip = TextClip(
                     text=step["text"],
                     font_size=60,
                     font=self.config["video"]["font"],
                     color=self.colors['text'],
                     stroke_color=self.colors['highlight'],
-                    stroke_width=2,
+                    stroke_width=5,
                     method="label"
-                ).with_position((80, y - 8)).with_start(step["start"]).with_duration(total_duration - step["duration"])
+                ).with_position((x, y)).with_start(step["start"]).with_duration(total_duration - step["duration"])
                 dynamic_clips.append(text_clip)
                 i += 1
 
@@ -388,17 +432,47 @@ class VideoCreator:
                 audio_clip = AudioFileClip(step["audio_path"]).with_start(step["start"]).with_duration(step["duration"])
                 audio_clips.append(audio_clip)
 
-        # --- Créer la vidéo finale
-        all_video_clips = static_clips + dynamic_clips
-        video = CompositeVideoClip(all_video_clips, size=(self.width, self.height)).with_duration(total_duration)
 
+        # Définir la position des sous-titres.
+        subtitle_position = ('center', self.height * 0.2)  # Position par défaut
+                    
+        # Créer le générateur de sous-titres
+        make_textclip = lambda txt: self._create_subtitle_clip(txt, self.height)
+        
+        # Charger les sous-titres avec la position calculée
+        srt_file = 'temp/subtitles.srt'
+        subtitles = SubtitlesClip(srt_file, make_textclip=make_textclip).with_position(subtitle_position)
+        
+        #Charger la video de fond
+        background_video_file = self.config["video"]["background"];
+        background_video_path = self.config["path_assets"]["backgrounds"] + '/' + background_video_file
+        background_video_clip = VideoFileClip(background_video_path)
+        background_video_clip = background_video_clip.resized((self.width, self.height))
+        
+        if background_video_clip.duration < total_duration:
+            n_loops = int(total_duration / background_video_clip.duration) + 1
+            background_video_clip = background_video_clip.loop(n=n_loops)
+        
+        background_video_clip = background_video_clip.subclipped(0, total_duration)
+        
+        # --- Créer la vidéo finale
+        all_video_clips = [background_video_clip] + static_clips + dynamic_clips + [subtitles]
+        video = CompositeVideoClip(all_video_clips, size=(self.width, self.height))
+
+        # frame = video.get_frame(30)
+        # plt.imshow(frame)
+        # plt.axis('off')  # Supprime les axes
+        # plt.show()
+        # exit()
+        
         if audio_clips:
+            audio_clips.append(AudioFileClip(self.config["path_assets"]["music"] + '/' + self.config["music"]["background"]))
             final_audio = CompositeAudioClip(audio_clips)
             video = video.with_audio(final_audio)
 
         # --- Export
         output_path = str(self.temp_dir / self._get_unique_filename(prefix="final"))
-        video.write_videofile(
+        video.with_duration(total_duration).write_videofile(
             str(output_path),
             fps=self.config["video"]["fps"],  # 24 ou + recommandé
             codec='libx264',
@@ -903,14 +977,16 @@ class VideoCreator:
             # Position texte au centre du cercle
             text_x = circle_radius + 20
             text_y = circle_radius + 20
+            
             draw.text(
                 (text_x, text_y), 
                 str(time_left), 
                 fill=text_color, 
                 font=font, 
-                anchor="mm"
+                anchor="mm",
+                stroke_width=5,
+                stroke_fill="black"
             )
-            
             # Convertir en array pour moviepy
             frame_array = np.array(img)
             frames.append(frame_array)
