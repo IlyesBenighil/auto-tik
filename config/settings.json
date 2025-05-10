@@ -1,5 +1,5 @@
 {
-    "language": "français",
+    "language": "japonais",
     "video": {
         "width": 1080,
         "height": 1920,
@@ -15,8 +15,8 @@
         "choice_correct_highlight": "(0, 255, 0, 255)",
         "choice_background": "(150, 0, 0, 153)",
         "choice_highlight": "(255, 255, 255, 204)",
-        "font": "usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-        "background": "cloudv2.mp4"
+        "font": "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+        "background": ""
     },
     "questions": {
         "json": "questions.json"
@@ -48,7 +48,7 @@
     "size_question": 200,
     "model": {
         "type": "mistral",
-        "name": "mistral-large-2411"
+        "name": "open-mistral-nemo"
     },
     "path_assets": {
         "temp": "temp",
@@ -86,9 +86,14 @@
         "psychologie"
     ],
     "tts": {
-        "language": "fr-FR",
-        "voice": "fr-FR-Chirp3-HD-Umbriel",
-        "gender": "male"
+        "language": "ja-JP",
+        "voice": "ja-JP-Chirp3-HD-Aoede",
+        "gender": "female",
+        "old": {
+            "language": "fr-FR",
+            "voice": "fr-FR-Chirp3-HD-Umbriel",
+            "gender": "male"
+        }
     },
     "storage": {
         "local_path": "assets/generated"

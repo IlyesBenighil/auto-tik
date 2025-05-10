@@ -10,6 +10,7 @@ from moviepy import AudioClip, AudioFileClip, ColorClip, CompositeAudioClip, Com
 from moviepy.video.tools.subtitles import SubtitlesClip
 import numpy as np
 import ast
+from moviepy.video.fx.Loop import Loop as loop
 
 logger = logging.getLogger(__name__)
 
@@ -337,16 +338,17 @@ class VideoCreator:
     
     def create_video_v2(self, steps: List, total_duration: float) -> CompositeVideoClip:
         nb_question = self.config["prompt"]["num_questions"]
-        padding = 100
+        padding = 110
         first_question_y = self.height * 0.27
-
+        first_question_text = steps[1]["text"]
         static_clips = []
         dynamic_clips = []
         audio_clips = []
+        
         # Création d'un TextClip avec fond rouge
         text_clip = TextClip(
-            text=f"Quiz Culture générale",
-            font_size=60,
+            text=f"クイズ",
+            font_size=80,
             font=self.config["video"]["font"],
             color="white",
             stroke_color="black", 
@@ -387,6 +389,7 @@ class VideoCreator:
         
         # Ajout aux clips statiques
         static_clips.append(final_text)
+        
         # --- Ajouter tous les tirets une fois
         for i in range(nb_question):
             y = first_question_y + i * padding
@@ -411,7 +414,7 @@ class VideoCreator:
                     x+= 15
                 text_clip = TextClip(
                     text=step["text"],
-                    font_size=60,
+                    font_size=80,
                     font=self.config["video"]["font"],
                     color=self.colors['text'],
                     stroke_color=self.colors['highlight'],
@@ -446,17 +449,20 @@ class VideoCreator:
         #Charger la video de fond
         background_video_file = self.config["video"]["background"];
         background_video_path = self.config["path_assets"]["backgrounds"] + '/' + background_video_file
+        if background_video_file == "":
+            background_video_path = self.background_manager.get_background(first_question_text)
         background_video_clip = VideoFileClip(background_video_path)
         background_video_clip = background_video_clip.resized((self.width, self.height))
         
         if background_video_clip.duration < total_duration:
             n_loops = int(total_duration / background_video_clip.duration) + 1
-            background_video_clip = background_video_clip.loop(n=n_loops)
+            background_video_clip = loop(background_video_clip, n=n_loops)
         
         background_video_clip = background_video_clip.subclipped(0, total_duration)
         
         # --- Créer la vidéo finale
-        all_video_clips = [background_video_clip] + static_clips + dynamic_clips + [subtitles]
+        # all_video_clips = [background_video_clip] + static_clips + dynamic_clips + [subtitles]
+        all_video_clips = [background_video_clip] + static_clips + dynamic_clips
         video = CompositeVideoClip(all_video_clips, size=(self.width, self.height))
 
         # frame = video.get_frame(30)
@@ -464,7 +470,8 @@ class VideoCreator:
         # plt.axis('off')  # Supprime les axes
         # plt.show()
         # exit()
-        
+
+                    
         if audio_clips:
             audio_clips.append(AudioFileClip(self.config["path_assets"]["music"] + '/' + self.config["music"]["background"]))
             final_audio = CompositeAudioClip(audio_clips)

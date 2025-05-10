@@ -10,7 +10,8 @@ class ZoomEffect:
     def __init__(self):
         print("ZoomEffect init")
     def create_zoom_video(self,image_path, output_path, duration=5.0, zoom_factor=1.5, fps=30, 
-                          blur=0, width=1080, height=1920, movement=0.1, movement_type="circle"):
+                          blur=0, width=1080, height=1920, movement=0.1, movement_type="circle",
+                          zoom_time=0.5):
         """
         Crée une vidéo avec un effet de zoom progressif sur une image et un mouvement léger.
 
@@ -25,12 +26,12 @@ class ZoomEffect:
             height (int): Hauteur de la vidéo
             movement (float): Intensité du mouvement (0 = pas de mouvement, 1 = mouvement maximal)
             movement_type (str): Type de mouvement ("circle", "horizontal", "vertical", "diagonal", "random")
+            zoom_time (float): Temps de zoom en secondes (durée d'un cycle zoom/dézoom)
         """
 
         # Vérifier que le fichier image existe
         if not os.path.exists(image_path):
             raise FileNotFoundError(f"L'image {image_path} n'existe pas")
-
 
         # Charger l'image
         original_image = Image.open(image_path)
@@ -80,6 +81,16 @@ class ZoomEffect:
         fourcc = cv2.VideoWriter_fourcc(*'mp4v')
         video_writer = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
 
+        # Fonction pour calculer le zoom avec effet de rebond
+        def calculate_zoom(progress, frame_index):
+            # Calculer le nombre de cycles de zoom complets
+            cycles = duration / zoom_time
+            # Calculer la position dans le cycle actuel
+            cycle_progress = (progress * cycles) % 1.0
+            # Utiliser une fonction sinusoïdale pour créer l'effet de rebond
+            zoom_progress = abs(math.sin(cycle_progress * math.pi))
+            # Appliquer le facteur de zoom
+            return 1.0 + zoom_progress * (zoom_factor - 1.0)
 
         # Fonction pour calculer le déplacement selon le type de mouvement
         def calculate_movement(progress, frame_index):
@@ -122,9 +133,9 @@ class ZoomEffect:
             if i % max(1, num_frames // 10) == 0 or i % 100 == 0:
                 print(f"Progression: {i}/{num_frames} frames ({i/num_frames*100:.1f}%)")
 
-            # Calculer le zoom pour cette frame
+            # Calculer le zoom pour cette frame avec effet de rebond
             progress = i / num_frames
-            current_zoom = 1.0 + progress * (zoom_factor - 1.0)
+            current_zoom = calculate_zoom(progress, i)
 
             # Calculer le mouvement pour cette frame
             offset_x, offset_y = calculate_movement(progress, i)
@@ -185,31 +196,34 @@ class ZoomEffect:
 
         return output_path
 
-    if __name__ == "__main__":
-        parser = argparse.ArgumentParser(description="Crée une vidéo avec effet de zoom et mouvement à partir d'une image")
-        parser.add_argument("image", help="Chemin vers l'image source")
-        parser.add_argument("--output", "-o", help="Chemin de sortie pour la vidéo (défaut: zoom_output.mp4)", default="zoom_output.mp4")
-        parser.add_argument("--duration", "-d", type=float, help="Durée de la vidéo en secondes (défaut: 5.0)", default=5.0)
-        parser.add_argument("--zoom", "-z", type=float, help="Facteur de zoom final (défaut: 1.5)", default=1.5)
-        parser.add_argument("--fps", "-f", type=int, help="Images par seconde (défaut: 30)", default=30)
-        parser.add_argument("--blur", "-b", type=int, help="Intensité du flou constant (défaut: 0, pas de flou)", default=0)
-        parser.add_argument("--width", "-W", type=int, help="Largeur de la vidéo (défaut: 1080)", default=1080)
-        parser.add_argument("--height", "-H", type=int, help="Hauteur de la vidéo (défaut: 1920)", default=1920)
-        parser.add_argument("--movement", "-m", type=float, help="Intensité du mouvement (défaut: 0.1, 0=aucun, 1=max)", default=0.1)
-        parser.add_argument("--movement-type", "-mt", help="Type de mouvement (défaut: circle)", 
-                           choices=["circle", "horizontal", "vertical", "diagonal", "random"], default="circle")
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Crée une vidéo avec effet de zoom et mouvement à partir d'une image")
+    parser.add_argument("image", help="Chemin vers l'image source")
+    parser.add_argument("--output", "-o", help="Chemin de sortie pour la vidéo (défaut: zoom_output.mp4)", default="zoom_output.mp4")
+    parser.add_argument("--duration", "-d", type=float, help="Durée de la vidéo en secondes (défaut: 5.0)", default=5.0)
+    parser.add_argument("--zoom", "-z", type=float, help="Facteur de zoom final (défaut: 1.5)", default=1.5)
+    parser.add_argument("--fps", "-f", type=int, help="Images par seconde (défaut: 30)", default=30)
+    parser.add_argument("--blur", "-b", type=int, help="Intensité du flou constant (défaut: 0, pas de flou)", default=0)
+    parser.add_argument("--width", "-W", type=int, help="Largeur de la vidéo (défaut: 1080)", default=1080)
+    parser.add_argument("--height", "-H", type=int, help="Hauteur de la vidéo (défaut: 1920)", default=1920)
+    parser.add_argument("--movement", "-m", type=float, help="Intensité du mouvement (défaut: 0.1, 0=aucun, 1=max)", default=0.1)
+    parser.add_argument("--movement-type", "-mt", help="Type de mouvement (défaut: circle)", 
+                       choices=["circle", "horizontal", "vertical", "diagonal", "random", "none"], default="circle")
+    parser.add_argument("--zoom-time", "-zt", type=float, help="Temps de zoom en secondes (défaut: 0.5)", default=0.5)
 
-        args = parser.parse_args()
+    args = parser.parse_args()
 
-        create_zoom_video(
-            args.image, 
-            args.output, 
-            duration=args.duration, 
-            zoom_factor=args.zoom, 
-            fps=args.fps,
-            blur=args.blur,
-            width=args.width,
-            height=args.height,
-            movement=args.movement,
-            movement_type=args.movement_type
-        )
+    zoom_effect = ZoomEffect()
+    zoom_effect.create_zoom_video(
+        args.image, 
+        args.output, 
+        duration=args.duration, 
+        zoom_factor=args.zoom, 
+        fps=args.fps,
+        blur=args.blur,
+        width=args.width,
+        height=args.height,
+        movement=args.movement,
+        movement_type=args.movement_type,
+        zoom_time=args.zoom_time
+    )

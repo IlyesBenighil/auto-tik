@@ -286,8 +286,8 @@ Retourne moi uniquement le json:
         if (self.config["questions"]["json"] != ''):
             with open(self.config["questions"]["json"], 'r') as f:
                 json_quiz = json.load(f)["questions"]
-            selected_questions = random.sample(json_quiz, self.num_questions)
-            return selected_questions
+            #selected_questions = random.sample(json_quiz, self.num_questions)
+            return json_quiz
         prompt = f"""
         Je veux que tu me génére {str(self.num_questions)} question de niveau 6 eme sur la cultre général. 
         Donne moi les questions et les reponses. 

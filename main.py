@@ -173,10 +173,16 @@ class VideoGenerator:
         questions = self.question_generator.generate_smart_quiz_v2(self.theme)
         # Génération des tts
         #intro_text = "Es tu plus intelligent qu'un élève de 6eme ? On commence facile !"
-        intro_text = f"Seul 1'%' des personnes arrivent à avoir 10 sur 10 à ce quiz !"
-        phase_1_text = "Si tu as tout bon like et partage la video !"
-        phase_2_text = "Ok on vas augmenter la difficulté ! Oublie pas de partager ton score"
-        phase_3_text = "Si tu as 10 sur 10 bravo! Commente ton score et dit moi sur quelle thème tu veux un quiz !"
+        # intro_text = f"Seul 1'%' des personnes arrivent à avoir 10 sur 10 à ce quiz !"
+        # phase_1_text = "Si tu as tout bon like et partage la video !"
+        # phase_2_text = "Ok on vas augmenter la difficulté ! Oublie pas de partager ton score"
+        # phase_3_text = "Si tu as 10 sur 10 bravo! Commente ton score et dit moi sur quelle thème tu veux un quiz !"
+        
+        intro_text = "このクイズで10点満点を取れるのは、たった1%の人だけ！"
+        phase_1_text = "もし全問正解したら、いいねして動画をシェアしてね！"
+        phase_2_text = "OK、ここから難易度アップ！スコアのシェアも忘れないでね！"
+        phase_3_text = "10点満点おめでとう！スコアをコメントして、次に挑戦したいクイズのテーマも教えてね！"
+
         steps = [{
             "type": "phase",
             "text": intro_text,

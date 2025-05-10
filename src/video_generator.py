@@ -13,9 +13,10 @@ class VideoGenerator:
             duration=120,
             zoom_factor=1.1,
             fps=30,
-            blur=3,
+            blur=0,
             width=1080,
             height=1920,
             movement=0.1,
-            movement_type="horizontal",
+            movement_type="none",
+            zoom_time=10
             )
