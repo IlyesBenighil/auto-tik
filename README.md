@@ -111,6 +111,4 @@ Contributions are welcome! Feel free to:
 5. Open a Pull Request  
 
 ## Author  
-Ilyes
-
-Ilyes  
+Ilyes 
