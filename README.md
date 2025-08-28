@@ -1,85 +1,80 @@
-# Auto-Tik : Générateur Automatique de Quiz Vidéo pour TikTok
+# Auto-Tik: Automatic Quiz Video Generator for TikTok  
 
-Auto-Tik est une application Python qui génère automatiquement des vidéos de quiz pour TikTok. L'application utilise l'IA pour générer des questions, la synthèse vocale pour la narration, et des outils de montage vidéo pour créer des contenus engageants.
+Auto-Tik is a Python application that automatically generates quiz videos for TikTok. The app uses AI to generate questions, text-to-speech for narration, and video editing tools to create engaging content.  
 
-## Fonctionnalités
+## Features  
 
-- Génération automatique de questions sur différents thèmes
-- Synthèse vocale de haute qualité avec ElevenLabs
-- Création de vidéos verticales optimisées pour TikTok
-- Stockage local et cloud (AWS S3, Google Cloud Storage)
-- Interface modulaire et extensible
+- Automatic generation of quiz questions on different topics  
+- Creation of vertical videos optimized for TikTok  
 
-## Prérequis
+## Prerequisites  
 
-- Python 3.8+
-- FFmpeg
-- Clés API pour :
-  - OpenAI
-  - ElevenLabs
-  - AWS (optionnel)
-  - Google Cloud (optionnel)
+- Python 3.8+  
+- FFmpeg  
+- API keys for:  
+  - MistralAPI  
+  - Google Cloud  
 
-## Installation
+## Installation  
 
-1. Cloner le repository :
+1. Clone the repository:  
 ```bash
-git clone https://github.com/votre-username/auto-tik.git
+git clone https://github.com/your-username/auto-tik.git
 cd auto-tik
 ```
 
-2. Créer un environnement virtuel :
+2. Create a virtual environment:  
 ```bash
 python -m venv venv
 source venv/bin/activate  # Linux/Mac
-# ou
+# or
 venv\Scripts\activate  # Windows
 ```
 
-3. Installer les dépendances :
+3. Install dependencies:  
 ```bash
 pip install -r requirements.txt
 ```
 
-4. Configurer les variables d'environnement :
+4. Set up environment variables:  
 ```bash
 cp .env.example .env
-# Éditer .env avec vos clés API
+# Edit .env with your API keys
 ```
 
-## Structure du Projet
+## Project Structure  
 
 ```
 auto-tik/
-├── .env                    # Variables d'environnement
-├── requirements.txt        # Dépendances Python
-├── README.md              # Documentation
-├── main.py               # Point d'entrée
+├── .env                    # Environment variables
+├── requirements.txt        # Python dependencies
+├── README.md               # Documentation
+├── main.py                 # Entry point
 ├── config/
-│   └── settings.json     # Configuration
+│   └── settings.json       # Configuration
 ├── src/
-│   ├── theme_selector.py  # Sélection des thèmes
-│   ├── question_generator.py  # Génération des questions
-│   ├── tts_engine.py     # Synthèse vocale
-│   ├── video_creator.py  # Création vidéo
-│   └── storage.py        # Gestion du stockage
+│   ├── theme_selector.py   # Theme selection
+│   ├── question_generator.py  # Question generation
+│   ├── tts_engine.py       # Text-to-speech
+│   ├── video_creator.py    # Video creation
+│   └── storage.py          # Storage management
 └── assets/
-    ├── backgrounds/      # Fonds vidéo
-    ├── music/           # Musiques
-    └── generated/       # Vidéos générées
+    ├── backgrounds/        # Video backgrounds
+    ├── music/              # Music
+    └── generated/          # Generated videos
 ```
 
-## Utilisation
+## Usage  
 
-1. Configurer les paramètres dans `config/settings.json`
-2. Lancer la génération :
+1. Configure the parameters in `config/settings.json`  
+2. Run the generator:  
 ```bash
 python main.py
 ```
 
-## Configuration
+## Configuration  
 
-### settings.json
+### settings.json  
 
 ```json
 {
@@ -90,10 +85,10 @@ python main.py
         "duration": 15
     },
     "themes": [
-        "histoire",
-        "géographie",
-        "cinéma",
-        "culture_pop"
+        "history",
+        "geography",
+        "cinema",
+        "pop_culture"
     ],
     "tts": {
         "provider": "elevenlabs",
@@ -106,19 +101,16 @@ python main.py
 }
 ```
 
-## Contribution
+## Contribution  
 
-Les contributions sont les bienvenues ! N'hésitez pas à :
-1. Fork le projet
-2. Créer une branche pour votre fonctionnalité
-3. Commiter vos changements
-4. Pousser vers la branche
-5. Ouvrir une Pull Request
+Contributions are welcome! Feel free to:  
+1. Fork the project  
+2. Create a branch for your feature  
+3. Commit your changes  
+4. Push to your branch  
+5. Open a Pull Request  
 
-## Licence
-
-Ce projet est sous licence MIT. Voir le fichier `LICENSE` pour plus de détails.
-
-## Auteur
-
+## Author  
 Ilyes
+
+Ilyes  
