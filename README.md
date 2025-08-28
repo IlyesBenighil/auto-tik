@@ -121,10 +121,4 @@ Ce projet est sous licence MIT. Voir le fichier `LICENSE` pour plus de détails.
 
 ## Auteur
 
-Votre Nom - [@votre-twitter](https://twitter.com/votre-twitter)
-
-## Remerciements
-
-- OpenAI pour l'API de génération de questions
-- ElevenLabs pour la synthèse vocale
-- MoviePy pour la création vidéo 
+Ilyes
